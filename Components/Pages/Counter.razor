@@ -1,0 +1,67 @@
+﻿@page "/counter"
+@rendermode InteractiveServer
+@implements IDisposable
+@using System.Timers
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+@if (currentCount > 3)
+{
+    <p>You win!</p>
+}
+<p role="status">岁数: @currentCount</p>
+
+<button class="btn btn-primary"
+        @onmousedown="StartIncrement"
+        @onmouseup="StopIncrement"
+        @onmouseleave="StopIncrement">
+    不要啊
+</button>
+
+
+
+@code {
+    private int currentCount = 0;
+    private System.Timers.Timer? _timer;  // 明确指定Timer类型
+
+    // 鼠标按下时启动定时器
+    private void StartIncrement()
+    {
+        // 间隔时间（毫秒），控制计数速度（如100ms=每秒10次）
+        _timer = new System.Timers.Timer(100);
+        // 绑定定时器触发事件
+        _timer.Elapsed += OnTimerElapsed;
+        _timer.Start(); // 启动定时器
+    }
+
+    // 定时器触发时执行的逻辑（计数增加）
+    private void OnTimerElapsed(object? sender, ElapsedEventArgs e)
+    {
+        // 定时器在非UI线程，需通过InvokeAsync切换到UI线程更新
+        InvokeAsync(() =>
+        {
+            currentCount += 3;
+            StateHasChanged(); // 强制刷新UI
+        });
+    }
+
+    // 鼠标松开或移出时停止定时器
+    private void StopIncrement()
+    {
+        if (_timer != null)
+        {
+            _timer.Elapsed -= OnTimerElapsed; // 解绑事件（避免重复触发）
+            _timer.Stop();
+            _timer.Dispose(); // 释放资源
+            _timer = null;
+        }
+    }
+
+    // 组件销毁时释放资源（防止内存泄漏）
+    public void Dispose()
+    {
+        StopIncrement(); // 调用停止方法，确保资源释放
+    }
+}

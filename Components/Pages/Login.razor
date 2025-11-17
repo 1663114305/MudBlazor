@@ -1,0 +1,55 @@
+﻿@page "/login"
+@using MudBlazor
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div style="height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
+    <MudCard Elevation="10" Style="width: 100%; max-width: 400px; margin: 16px;">
+        <MudCardContent>
+            <!-- 标题区域 -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <MudIcon Icon="Icons.Material.Filled.Lock" Color="Color.Primary" Size="Size.Large" Style="margin-bottom: 10px;" />
+                <MudText Typo="Typo.h4" Color="Color.Primary">用户登录</MudText>
+            </div>
+
+            <!-- 用户名区域 -->
+            <MudText Typo="Typo.body1" Style="margin-bottom: 8px; font-weight: 500;">用户名</MudText>
+            <MudTextField T="string"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          Placeholder="请输入用户名"
+                          PrependIcon="Icons.Material.Filled.Person"
+                          Style="margin-bottom: 20px;" />
+
+            <!-- 密码区域 -->
+            <MudText Typo="Typo.body1" Style="margin-bottom: 8px; font-weight: 500;">密码</MudText>
+            <MudTextField T="string"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          InputType="InputType.Password"
+                          Placeholder="请输入密码"
+                          PrependIcon="Icons.Material.Filled.Lock"
+                          Style="margin-bottom: 10px;" />
+
+            <!-- 登录按钮 -->
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Size="Size.Large"
+                       Style="margin-top: 20px;">
+                登录
+            </MudButton>
+
+            <!-- 底部提示 -->
+            <MudText Typo="Typo.caption" Align="Align.Center" Style="margin-top: 20px; color: #666;">
+                提示：这是一个演示登录界面
+            </MudText>
+        </MudCardContent>
+    </MudCard>
+</div>
+
+@code {
+    // 这里没有功能代码，只有UI设计
+}

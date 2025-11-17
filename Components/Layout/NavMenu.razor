@@ -1,0 +1,38 @@
+﻿@inherits LayoutComponentBase
+@using MudBlazor
+
+
+    <!-- 侧边栏 -->
+    <MudDrawer Open="@_sidebarOpen" Anchor="Anchor.Left   " Variant="DrawerVariant.Persistent">
+        <div Style="padding: 1rem;">
+            <MudNavMenu Style="background-color:#f8fafc; border-radius:4px;">
+                <MudNavLink Icon="@Icons.Material.Filled.Home" Match="NavLinkMatch.All" Href="/">
+                    Home
+                </MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Add" Href="/counter">
+                    Counter
+                </MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Cloud" Href="/weather">
+                    Weather
+                </MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.List" Href="/student/list">
+                    学生列表
+                </MudNavLink>
+            </MudNavMenu>
+        </div>
+    </MudDrawer>
+
+    <!-- 主内容区 -->
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+
+
+@code {
+    private bool _sidebarOpen = true;
+
+    private void ToggleSidebar()
+    {
+        _sidebarOpen = !_sidebarOpen;
+    }
+}
