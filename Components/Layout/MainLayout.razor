@@ -5,63 +5,49 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div class="page">
-    <div class="sidebar">
+<!-- 使用 MudLayout 替代原生 div，提供更好的响应式支持 -->
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudSpacer />
+        <MudText Typo="Typo.h6" Style="font-weight: bold;">神动专属</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined"
+                   Size="Size.Small"
+                   OnClick="Logout"
+                   EndIcon="Icons.Material.Filled.Logout">
+            退出登录
+        </MudButton>
+    </MudAppBar>
+
+    <!-- 侧边栏抽屉，在手机端会自动覆盖式显示 -->
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
         <NavMenu />
-    </div>
+    </MudDrawer>
 
-    <main>
-        <div class="top-row px-4">
-            <span style="font-weight: bold; font-size: 1.2rem;">神动专属</span>
-            <div style="margin-left: auto;">
-                <!-- 仅修改退出按钮：用示例同款事件绑定语法 -->
-                <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@((e) => Logout())">
-                    退出登录
-                </MudButton>
-            </div>
-        </div>
-
-        <article class="content px-4">
+    <!-- 主要内容区域 -->
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.False" Class="py-4">
             @Body
-        </article>
-    </main>
-</div>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
 
 @code {
     [Inject] private NavigationManager NavManager { get; set; }
 
-    // 退出登录方法（保持不变）
+    // 控制侧边栏显示状态
+    private bool _drawerOpen = true;
+
+    // 切换侧边栏显示/隐藏
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    // 退出登录方法
     private void Logout()
     {
         NavManager.NavigateTo("/");
     }
 }
-
-<style>
-    .page {
-        display: flex;
-        height: 100vh;
-        overflow: hidden;
-    }
-
-    .sidebar {
-        width: 250px;
-        background-color: #f0f2f5;
-        border-right: 1px solid #ddd;
-        padding: 1rem 0;
-    }
-
-    .top-row {
-        background-color: #fff;
-        border-bottom: 1px solid #ddd;
-        padding: 1rem;
-        display: flex;
-        align-items: center;
-    }
-
-    .content {
-        flex: 1;
-        padding: 1.5rem;
-        overflow-y: auto;
-    }
-</style>
