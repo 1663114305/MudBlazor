@@ -26,14 +26,14 @@
     <link rel="icon" type="image/png" href="favicon.png" />
     <!-- Blazor专用组件：渲染页面的动态头部内容（如PageTitle组件设置的页面标题） -->
     <!-- 替代传统静态<title>标签，支持组件级别的标题动态切换 -->
-    <HeadOutlet />
+    <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <!-- 主体区域：页面可见内容的容器，所有页面组件最终会渲染到这里 -->
 <body>
     <!-- Blazor路由组件：应用的路由入口 -->
     <!-- 负责根据URL匹配对应的Razor页面组件（如Login.razor、Home.razor）并渲染 -->
-    <Routes />
+    <Routes @rendermode="InteractiveServer" />
     <!-- 引入Blazor Server的核心JavaScript脚本 -->
     <!-- 负责客户端与服务器的SignalR通信、组件渲染、事件交互等核心功能 -->
     <script src="_framework/blazor.web.js"></script>
