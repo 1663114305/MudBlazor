@@ -1,6 +1,20 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+﻿<!-- Blazor 路由核心组件：负责管理应用的页面路由匹配 -->
+<!-- AppAssembly="typeof(Program).Assembly"：指定路由扫描的程序集（当前应用程序集） -->
+<!-- 会自动扫描该程序集中所有带 page 注解的 Razor 组件，注册其路由规则 -->
+<Router AppAssembly="typeof(Program).Assembly">
+    <!-- Found 组件：当 URL 匹配到已注册的路由时触发渲染 -->
+    <!-- Context="routeData"：将匹配成功的路由数据（如页面类型、参数等）赋值给 routeData 变量 -->
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Pages .Login )" />
+        <!-- 路由视图组件：根据 routeData 渲染对应的页面组件 -->
+        <!-- RouteData="routeData"：传入匹配到的路由数据，告知要渲染哪个页面 -->
+        <!-- DefaultLayout="typeof(Layout.MainLayout)"：指定默认布局组件（Layout 命名空间下的 MainLayout.razor） -->
+        <!-- 若页面组件未通过 layout 指定专属布局，则使用该默认布局 -->
+        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        
+        <!-- 导航聚焦组件：页面导航切换后自动聚焦到指定元素 -->
+        <!-- RouteData="routeData"：监听路由变化，触发聚焦逻辑 -->
+        <!-- Selector="h1"：指定聚焦目标为页面中的 <h1> 标签 -->
+        <!-- 提升 accessibility（无障碍访问），让用户快速定位页面核心标题 -->
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

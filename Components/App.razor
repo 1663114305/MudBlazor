@@ -1,21 +1,44 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿<!-- HTML文档声明，指定文档类型为HTML5 -->
+<!DOCTYPE html>
+<!-- 根HTML标签，lang="en"指定页面语言为英文（可改为zh-CN适配中文） -->
+<html lang="zh ">
 
+<!-- 头部区域：用于配置页面元信息、引入样式文件、图标等，不直接显示页面内容 -->
 <head>
+    <!-- 元标签：指定文档字符编码为UTF-8（支持多语言，避免中文乱码） -->
     <meta charset="utf-8" />
+    <!-- 元标签：适配移动设备视图 -->
+    <!-- width=device-width：让页面宽度与设备屏幕宽度一致 -->
+    <!-- initial-scale=1.0：设置初始缩放比例为1，确保页面正常显示 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 基础路径标签：指定页面中所有相对URL的基准路径为根目录（/） -->
+    <!-- 确保CSS、JS、图片等资源能正确加载，不受路由层级影响 -->
     <base href="/" />
+    <!-- 引入Bootstrap框架的CSS样式文件（提供预定义的UI组件和布局样式） -->
     <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
+    <!-- 引入应用自定义的全局CSS样式文件（存放项目专属样式，优先级高于框架样式） -->
     <link rel="stylesheet" href="app.css" />
+    <!-- 引入Blazor自动生成的组件样式文件（编译时合并所有Razor组件的样式） -->
     <link rel="stylesheet" href="BlazorApp1.styles.css" />
+    <!-- 引入MudBlazor组件库的CSS样式文件（启用MudBlazor组件的默认样式和主题） -->
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <!-- 配置页面图标：指定浏览器标签页显示的图标，格式为PNG -->
     <link rel="icon" type="image/png" href="favicon.png" />
+    <!-- Blazor专用组件：渲染页面的动态头部内容（如PageTitle组件设置的页面标题） -->
+    <!-- 替代传统静态<title>标签，支持组件级别的标题动态切换 -->
     <HeadOutlet />
 </head>
 
+<!-- 主体区域：页面可见内容的容器，所有页面组件最终会渲染到这里 -->
 <body>
+    <!-- Blazor路由组件：应用的路由入口 -->
+    <!-- 负责根据URL匹配对应的Razor页面组件（如Login.razor、Home.razor）并渲染 -->
     <Routes />
+    <!-- 引入Blazor Server的核心JavaScript脚本 -->
+    <!-- 负责客户端与服务器的SignalR通信、组件渲染、事件交互等核心功能 -->
     <script src="_framework/blazor.web.js"></script>
+    <!-- 引入MudBlazor组件库的JavaScript脚本 -->
+    <!-- 启用MudBlazor组件的交互功能（如对话框、下拉菜单、表单验证等） -->
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 </body>
 
