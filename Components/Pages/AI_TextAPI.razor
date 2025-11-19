@@ -7,7 +7,7 @@
 
 <PageTitle>AI_TextAPI</PageTitle>
 
-<h1>开始聊天吧!</h1>
+<h1>神动小助手</h1>
 
 <!-- 显示框（上方）：展示聊天记录，支持滚动 -->
 <MudCard id="chatContainer" Style="height: 400px; margin-bottom: 1rem; overflow-y: auto;">
@@ -17,8 +17,8 @@
         {
             if (message.StartsWith("用户："))
             {
-                <div style="text-align: right; margin: 0.5rem 0;">
-                    <MudChip T="string" Color="Color.Primary" Text="@message" Variant="Variant.Outlined" />
+                <div style="text-align: right; margin: 0.5rem 0; padding: 8px 12px; background-color: var(--mud-palette-primary); color: white; border-radius: 18px; width: fit-content; margin-left: auto; word-wrap: break-word;">
+                    <MudText Style="color: white; margin: 0;">@message.Replace("用户：", "")</MudText>
                 </div>
             }
             else if (message == "AI 正在思考中...")
@@ -35,22 +35,23 @@
             }
             else
             {
-                <div style="text-align: left; margin: 0.5rem 0;">
-                    <MudChip T="string" Color="Color.Primary" Text="@message" Variant="Variant.Filled" />
+                <div style="text-align: left; margin: 0.5rem 0; padding: 8px 12px; background-color: var(--mud-palette-success); color: white; border-radius: 18px; max-width:fit-content; word-wrap: break-word;">
+                    <MudText Style="color: white; margin: 0; white-space: pre-wrap;">@message.Replace("AI：", "")</MudText>
                 </div>
             }
         }
     </MudCardContent>
 </MudCard>
 
-<!-- 输入框和发送按钮 -->
+<!-- 输入框添加 @ref 引用，用于操作焦点 -->
 <MudGrid Gutter="16">
     <MudItem xs="10">
-        <MudTextField @bind-Value="userInput"
+        <MudTextField @ref="inputRef"  
+                      @bind-Value="userInput"
                       Label="输入你的问题"
                       Variant="Variant.Outlined"
                       FullWidth="true"
-                      OnKeyDown="HandleKeyDown"
+                      OnKeyUp="HandleKeyUp"  
                       Placeholder="输入后按回车或点击发送按钮..." />
     </MudItem>
     <MudItem xs="2">
@@ -71,8 +72,10 @@
     private List<string> chatHistory = new();
     // API Key
     private string ApiKey = "sk-834530e4443746cb91ac4900072c8957";
+    // 输入框组件引用（用于操作焦点）
+    private MudTextField<string> inputRef;
 
-    // 发送消息逻辑
+    // 发送消息逻辑（优化清空和焦点处理）
     private async Task CallDeepSeekApi()
     {
         // 输入为空校验
@@ -82,17 +85,25 @@
             return;
         }
 
-        // 保存用户输入，因为后面会清空 userInput
+        // 保存用户输入，避免清空后丢失
         var currentQuestion = userInput.Trim();
 
         // 1. 添加用户消息到历史记录
         AddMessageToHistory($"用户：{currentQuestion}");
         // 2. 添加AI思考中提示
         AddMessageToHistory("AI 正在思考中...");
-        // 3. 清空输入框
+        
+        // 核心优化：先清空输入框，再移除焦点
         userInput = string.Empty;
+        // 强制UI同步更新（确保内容清空）
+        StateHasChanged();
+        // 移除输入框焦点（需判断组件已渲染）
+        if (inputRef != null)
+        {
+            await inputRef.BlurAsync(); // 调用 MudTextField 内置的失焦方法
+        }
 
-        // API调用逻辑
+        // API调用逻辑（保持不变）
         using (var client = new HttpClient())
         {
             var request = new HttpRequestMessage(HttpMethod.Post, "https://api.deepseek.com/v1/chat/completions");
@@ -105,7 +116,7 @@
                 messages = new[]
                 {
                 new { role = "system", content = "You are a helpful assistant" },
-                new { role = "user", content = currentQuestion }  // 使用保存的用户输入
+                new { role = "user", content = currentQuestion }
             },
                 frequency_penalty = 0,
                 max_tokens = 4096,
@@ -129,7 +140,6 @@
                 using var doc = JsonDocument.Parse(responseContent);
                 var root = doc.RootElement;
 
-                // 解析AI回复
                 string aiAnswer = "AI 未返回有效内容。";
                 if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
                 {
@@ -140,46 +150,41 @@
                     }
                 }
 
-                // 4. 移除"AI正在思考中"提示，添加真实回复
+                // 移除思考提示，添加AI回复
                 chatHistory.RemoveAt(chatHistory.Count - 1);
                 AddMessageToHistory($"AI：{aiAnswer}");
             }
             catch (Exception ex)
             {
-                // 异常处理：移除思考提示，添加错误信息
                 chatHistory.RemoveAt(chatHistory.Count - 1);
                 AddMessageToHistory($"错误：{ex.Message}", isSystem: true);
             }
         }
     }
 
-    // 添加消息到历史记录（自动截取最近1000行）
+    // 添加消息到历史记录（保持不变）
     private void AddMessageToHistory(string message, bool isSystem = false)
     {
         chatHistory.Add(message);
 
-        // 超过1000行，保留最近1000行
         if (chatHistory.Count > 1000)
         {
             chatHistory = chatHistory.Skip(chatHistory.Count - 1000).ToList();
         }
 
-        // 强制UI刷新
         StateHasChanged();
-        // 异步调用滚动方法（避免同步调用JS报错）
         _ = ScrollToBottom();
     }
 
-    // 滚动到底部（JS互操作）
+    // 滚动到底部（保持不变）
     private async Task ScrollToBottom()
     {
-        // 等待DOM更新完成后再滚动
         await Task.Delay(10);
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chatContainer");
     }
 
-    // 回车发送
-    private async Task HandleKeyDown(KeyboardEventArgs e)
+    // 回车发送（保持不变，复用 CallDeepSeekApi 逻辑）
+    private async Task HandleKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
