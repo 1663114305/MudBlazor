@@ -40,6 +40,16 @@
     <!-- 引入MudBlazor组件库的JavaScript脚本 -->
     <!-- 启用MudBlazor组件的交互功能（如对话框、下拉菜单、表单验证等） -->
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+
+     <script>
+        // 添加滚动到底部的函数
+        function scrollToBottom(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.scrollTop = element.scrollHeight;
+            }
+        }
+        </script>
 </body>
 
 </html>

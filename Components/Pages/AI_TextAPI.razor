@@ -3,11 +3,23 @@
 @using MudBlazor
 @using System.Text.Json
 @inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
 @rendermode InteractiveServer
 
 <PageTitle>AI_TextAPI</PageTitle>
 
 <h1>神动小助手</h1>
+
+<!-- 清空对话按钮 -->
+<div style="text-align: right; margin-bottom: 1rem;">
+    <MudButton Variant="Variant.Outlined"
+               Color="Color.Error"
+               Size="Size.Small"
+               OnClick="ClearChatHistory"
+               StartIcon="@Icons.Material.Filled.Delete">
+        清空对话
+    </MudButton>
+</div>
 
 <!-- 显示框（上方）：展示聊天记录，支持滚动 -->
 <MudCard id="chatContainer" Style="height: 400px; margin-bottom: 1rem; overflow-y: auto;">
@@ -43,15 +55,15 @@
     </MudCardContent>
 </MudCard>
 
-<!-- 输入框添加 @ref 引用，用于操作焦点 -->
+<!-- 输入框和发送按钮 -->
 <MudGrid Gutter="16">
     <MudItem xs="10">
-        <MudTextField @ref="inputRef"  
+        <MudTextField @ref="inputRef"
                       @bind-Value="userInput"
                       Label="输入你的问题"
                       Variant="Variant.Outlined"
                       FullWidth="true"
-                      OnKeyUp="HandleKeyUp"  
+                      OnKeyUp="HandleKeyUp"
                       Placeholder="输入后按回车或点击发送按钮..." />
     </MudItem>
     <MudItem xs="2">
@@ -75,35 +87,75 @@
     // 输入框组件引用（用于操作焦点）
     private MudTextField<string> inputRef;
 
-    // 发送消息逻辑（优化清空和焦点处理）
+    // 组件初始化时加载历史记录
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadChatHistory();
+    }
+
+    // 在 @inject 部分添加
+    @inject ISnackbar Snackbar
+
+    private async Task LoadChatHistory()
+    {
+        try
+        {
+            var savedHistory = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "chatHistory");
+            if (!string.IsNullOrEmpty(savedHistory))
+            {
+                chatHistory = JsonSerializer.Deserialize<List<string>>(savedHistory) ?? new List<string>();
+                StateHasChanged();
+                await ScrollToBottom();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载聊天记录失败: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    private async Task SaveChatHistory()
+    {
+        try
+        {
+            var historyJson = JsonSerializer.Serialize(chatHistory);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "chatHistory", historyJson);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存聊天记录失败: {ex.Message}", Severity.Warning);
+        }
+    }
+    // 清空对话历史
+    private async Task ClearChatHistory()
+    {
+        chatHistory.Clear();
+        await SaveChatHistory();
+        Snackbar.Add("对话记录已清空", Severity.Success);
+        StateHasChanged();
+    }
+
+    // 发送消息逻辑
     private async Task CallDeepSeekApi()
     {
-        // 输入为空校验
         if (string.IsNullOrWhiteSpace(userInput?.Trim()))
         {
             AddMessageToHistory("请输入你的问题后再发送！", isSystem: true);
             return;
         }
 
-        // 保存用户输入，避免清空后丢失
         var currentQuestion = userInput.Trim();
-
-        // 1. 添加用户消息到历史记录
         AddMessageToHistory($"用户：{currentQuestion}");
-        // 2. 添加AI思考中提示
         AddMessageToHistory("AI 正在思考中...");
-        
-        // 核心优化：先清空输入框，再移除焦点
+
         userInput = string.Empty;
-        // 强制UI同步更新（确保内容清空）
         StateHasChanged();
-        // 移除输入框焦点（需判断组件已渲染）
+
         if (inputRef != null)
         {
-            await inputRef.BlurAsync(); // 调用 MudTextField 内置的失焦方法
+            await inputRef.BlurAsync();
         }
 
-        // API调用逻辑（保持不变）
         using (var client = new HttpClient())
         {
             var request = new HttpRequestMessage(HttpMethod.Post, "https://api.deepseek.com/v1/chat/completions");
@@ -115,9 +167,9 @@
                 model = "deepseek-chat",
                 messages = new[]
                 {
-                new { role = "system", content = "You are a helpful assistant" },
-                new { role = "user", content = currentQuestion }
-            },
+                    new { role = "system", content = "You are a helpful assistant" },
+                    new { role = "user", content = currentQuestion }
+                },
                 frequency_penalty = 0,
                 max_tokens = 4096,
                 presence_penalty = 0,
@@ -150,7 +202,6 @@
                     }
                 }
 
-                // 移除思考提示，添加AI回复
                 chatHistory.RemoveAt(chatHistory.Count - 1);
                 AddMessageToHistory($"AI：{aiAnswer}");
             }
@@ -162,7 +213,7 @@
         }
     }
 
-    // 添加消息到历史记录（保持不变）
+    // 添加消息到历史记录（修改为自动保存）
     private void AddMessageToHistory(string message, bool isSystem = false)
     {
         chatHistory.Add(message);
@@ -174,16 +225,17 @@
 
         StateHasChanged();
         _ = ScrollToBottom();
+        _ = SaveChatHistory(); // 自动保存
     }
 
-    // 滚动到底部（保持不变）
+    // 滚动到底部
     private async Task ScrollToBottom()
     {
         await Task.Delay(10);
         await JSRuntime.InvokeVoidAsync("scrollToBottom", "chatContainer");
     }
 
-    // 回车发送（保持不变，复用 CallDeepSeekApi 逻辑）
+    // 回车发送
     private async Task HandleKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
