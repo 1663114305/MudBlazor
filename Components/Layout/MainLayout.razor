@@ -5,49 +5,157 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<!-- 使用 MudLayout 替代原生 div，提供更好的响应式支持 -->
-<MudLayout>
-    <MudAppBar Elevation="1">
-        <MudIconButton Icon="Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+<div class="app-container">
+    <!-- 顶部导航栏 -->
+    <MudAppBar Elevation="1" Color="Color.Primary" Class="app-bar">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"
+                       OnClick="ToggleDrawer" />
+
+        <MudText Typo="Typo.h6" Style="font-weight: bold; color: white; margin-left: 16px;">神动专属</MudText>
+
         <MudSpacer />
-        <MudText Typo="Typo.h6" Style="font-weight: bold;">神动专属</MudText>
-        <MudSpacer />
+
         <MudButton Variant="Variant.Outlined"
                    Size="Size.Small"
                    OnClick="Logout"
-                   EndIcon="Icons.Material.Filled.Logout">
+                   Color="Color.Inherit"
+                   EndIcon="@Icons.Material.Filled.Logout">
             退出登录
         </MudButton>
     </MudAppBar>
 
-    <!-- 侧边栏抽屉，在手机端会自动覆盖式显示 -->
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-        <NavMenu />
-    </MudDrawer>
+    <div class="layout-body">
+        <!-- 侧边栏 -->
+        <div class="sidebar @(_drawerOpen ? "sidebar-open" : "sidebar-closed")">
+            <NavMenu />
+        </div>
 
-    <!-- 主要内容区域 -->
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.False" Class="py-4">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+        <!-- 主要内容区域 -->
+        <div class="main-content @(_drawerOpen ? "content-with-sidebar" : "content-full")">
+            <div class="content-container">
+                @Body
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
     [Inject] private NavigationManager NavManager { get; set; }
 
-    // 控制侧边栏显示状态
     private bool _drawerOpen = true;
 
-    // 切换侧边栏显示/隐藏
     private void ToggleDrawer()
     {
         _drawerOpen = !_drawerOpen;
     }
 
-    // 退出登录方法
     private void Logout()
     {
         NavManager.NavigateTo("/");
     }
 }
+
+<style>
+    .app-container {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1200;
+    }
+
+    .layout-body {
+        display: flex;
+        margin-top: 64px;
+        height: calc(100vh - 64px);
+    }
+
+    .sidebar {
+        width: 250px;
+        background: white;
+        border-right: 1px solid #e0e0e0;
+        transition: all 0.3s ease;
+        overflow-y: auto;
+        box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+    }
+
+    .sidebar-open {
+        transform: translateX(0);
+        width: 250px;
+    }
+
+    .sidebar-closed {
+        transform: translateX(-250px);
+        width: 0;
+    }
+
+    .main-content {
+        flex: 1;
+        transition: all 0.3s ease;
+        overflow-y: auto;
+        background-color: #f5f5f5;
+    }
+
+    .content-with-sidebar {
+        margin-left: 0;
+    }
+
+    .content-full {
+        margin-left: 0;
+    }
+
+    .content-container {
+        padding: 1.5rem;
+    }
+
+    /* 桌面端样式 */
+    @@media (min-width: 961px) {
+        .sidebar-closed {
+            width: 0;
+        }
+
+        .content-with-sidebar {
+            margin-left: 0;
+            width: calc(100% - 250px);
+        }
+
+        .content-full {
+            margin-left: 0;
+            width: 100%;
+        }
+    }
+
+    /* 移动端样式 */
+    @@media (max-width: 960px) {
+        .sidebar {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            height: calc(100vh - 64px);
+            z-index: 1100;
+        }
+
+        .sidebar-closed {
+            transform: translateX(-100%);
+        }
+        /* 侧边栏打开时的遮罩 */
+        .sidebar-open ~ .main-content::before {
+            content: '';
+            position: fixed;
+            top: 64px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+    }
+</style>
