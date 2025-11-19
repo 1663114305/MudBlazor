@@ -1,0 +1,189 @@
+﻿@page "/AI_TextAPI"
+@using System.Text
+@using MudBlazor
+@using System.Text.Json
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>AI_TextAPI</PageTitle>
+
+<h1>开始聊天吧!</h1>
+
+<!-- 显示框（上方）：展示聊天记录，支持滚动 -->
+<MudCard id="chatContainer" Style="height: 400px; margin-bottom: 1rem; overflow-y: auto;">
+    <MudCardContent>
+        <!-- 循环渲染聊天记录，区分用户和AI消息 -->
+        @foreach (var message in chatHistory)
+        {
+            if (message.StartsWith("用户："))
+            {
+                <div style="text-align: right; margin: 0.5rem 0;">
+                    <MudChip T="string" Color="Color.Primary" Text="@message" Variant="Variant.Outlined" />
+                </div>
+            }
+            else if (message == "AI 正在思考中...")
+            {
+                <div style="text-align: left; margin: 0.5rem 0;">
+                    <MudChip T="string" Color="Color.Info" Text="@message" Icon="@Icons.Material.Filled.AccessTime" />
+                </div>
+            }
+            else if (message.StartsWith("错误："))
+            {
+                <div style="text-align: left; margin: 0.5rem 0;">
+                    <MudChip T="string" Color="Color.Error" Text="@message" Icon="@Icons.Material.Filled.Error" />
+                </div>
+            }
+            else
+            {
+                <div style="text-align: left; margin: 0.5rem 0;">
+                    <MudChip T="string" Color="Color.Primary" Text="@message" Variant="Variant.Filled" />
+                </div>
+            }
+        }
+    </MudCardContent>
+</MudCard>
+
+<!-- 输入框和发送按钮 -->
+<MudGrid Gutter="16">
+    <MudItem xs="10">
+        <MudTextField @bind-Value="userInput"
+                      Label="输入你的问题"
+                      Variant="Variant.Outlined"
+                      FullWidth="true"
+                      OnKeyDown="HandleKeyDown"
+                      Placeholder="输入后按回车或点击发送按钮..." />
+    </MudItem>
+    <MudItem xs="2">
+        <MudButton Class="mt-4"
+                   StartIcon="@Icons.Material.Filled.Send"
+                   OnClick="@CallDeepSeekApi"
+                   Color="@Color.Primary"
+                   FullWidth="true">
+            发送
+        </MudButton>
+    </MudItem>
+</MudGrid>
+
+@code {
+    // 绑定用户输入
+    private string userInput = string.Empty;
+    // 聊天记录列表（存储所有消息）
+    private List<string> chatHistory = new();
+    // API Key
+    private string ApiKey = "sk-834530e4443746cb91ac4900072c8957";
+
+    // 发送消息逻辑
+    private async Task CallDeepSeekApi()
+    {
+        // 输入为空校验
+        if (string.IsNullOrWhiteSpace(userInput?.Trim()))
+        {
+            AddMessageToHistory("请输入你的问题后再发送！", isSystem: true);
+            return;
+        }
+
+        // 保存用户输入，因为后面会清空 userInput
+        var currentQuestion = userInput.Trim();
+
+        // 1. 添加用户消息到历史记录
+        AddMessageToHistory($"用户：{currentQuestion}");
+        // 2. 添加AI思考中提示
+        AddMessageToHistory("AI 正在思考中...");
+        // 3. 清空输入框
+        userInput = string.Empty;
+
+        // API调用逻辑
+        using (var client = new HttpClient())
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.deepseek.com/v1/chat/completions");
+            request.Headers.Add("Accept", "application/json");
+            request.Headers.Add("Authorization", $"Bearer {ApiKey}");
+
+            var requestBody = new
+            {
+                model = "deepseek-chat",
+                messages = new[]
+                {
+                new { role = "system", content = "You are a helpful assistant" },
+                new { role = "user", content = currentQuestion }  // 使用保存的用户输入
+            },
+                frequency_penalty = 0,
+                max_tokens = 4096,
+                presence_penalty = 0,
+                response_format = new { type = "text" },
+                stream = false,
+                temperature = 1.0,
+                top_p = 1.0
+            };
+
+            var json = System.Text.Json.JsonSerializer.Serialize(requestBody);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            request.Content = content;
+
+            try
+            {
+                var response = await client.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(responseContent);
+                var root = doc.RootElement;
+
+                // 解析AI回复
+                string aiAnswer = "AI 未返回有效内容。";
+                if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                {
+                    var firstChoice = choices[0];
+                    if (firstChoice.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var contentProp))
+                    {
+                        aiAnswer = contentProp.GetString() ?? aiAnswer;
+                    }
+                }
+
+                // 4. 移除"AI正在思考中"提示，添加真实回复
+                chatHistory.RemoveAt(chatHistory.Count - 1);
+                AddMessageToHistory($"AI：{aiAnswer}");
+            }
+            catch (Exception ex)
+            {
+                // 异常处理：移除思考提示，添加错误信息
+                chatHistory.RemoveAt(chatHistory.Count - 1);
+                AddMessageToHistory($"错误：{ex.Message}", isSystem: true);
+            }
+        }
+    }
+
+    // 添加消息到历史记录（自动截取最近1000行）
+    private void AddMessageToHistory(string message, bool isSystem = false)
+    {
+        chatHistory.Add(message);
+
+        // 超过1000行，保留最近1000行
+        if (chatHistory.Count > 1000)
+        {
+            chatHistory = chatHistory.Skip(chatHistory.Count - 1000).ToList();
+        }
+
+        // 强制UI刷新
+        StateHasChanged();
+        // 异步调用滚动方法（避免同步调用JS报错）
+        _ = ScrollToBottom();
+    }
+
+    // 滚动到底部（JS互操作）
+    private async Task ScrollToBottom()
+    {
+        // 等待DOM更新完成后再滚动
+        await Task.Delay(10);
+        await JSRuntime.InvokeVoidAsync("scrollToBottom", "chatContainer");
+    }
+
+    // 回车发送
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await CallDeepSeekApi();
+        }
+    }
+}
