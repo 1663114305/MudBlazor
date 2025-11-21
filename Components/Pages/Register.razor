@@ -1,0 +1,152 @@
+﻿@page "/Register"
+@using BlazorApp1.Components.Layout
+@using MudBlazor
+@using BlazorApp1.Components.Models // 引入 Login_db 模型
+@using Microsoft.EntityFrameworkCore // 引入 EF Core 用于数据库操作
+@using Microsoft.AspNetCore.Identity // 引入 PasswordHasher
+
+@* 关键：指定登录页用简化布局 *@
+@layout LoginLayout
+@rendermode InteractiveServer
+
+@inject NavigationManager NavManager
+@inject ISnackbar Snackbar
+@inject DBContext DbContext // 1. 注入我们的数据库上下文
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div style="height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
+    <MudCard Elevation="10" Style="width: 100%; max-width: 400px; margin: 16px;">
+        <MudCardContent>
+            <!-- 标题区域 -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <MudIcon Icon="Icons.Material.Filled.PersonAdd" Color="Color.Primary" Size="Size.Large" Style="margin-bottom: 10px;" />
+                <MudText Typo="Typo.h4" Color="Color.Primary">账号注册</MudText>
+            </div>
+
+            <!-- 用户名区域 -->
+            <MudText Typo="Typo.body1" Style="margin-bottom: 8px; font-weight: 500;">用户名</MudText>
+            <MudTextField T="string"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          Placeholder="请输入用户名"
+                          PrependIcon="Icons.Material.Filled.Person"
+                          Style="margin-bottom: 20px;"
+                          @bind-Value="Username" />
+
+            <!-- 密码区域 -->
+            <MudText Typo="Typo.body1" Style="margin-bottom: 8px; font-weight: 500;">密码</MudText>
+            <MudTextField T="string"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          InputType="InputType.Password"
+                          Placeholder="请输入密码"
+                          PrependIcon="Icons.Material.Filled.Lock"
+                          Style="margin-bottom: 10px;"
+                          @bind-Value="Password" />
+            <!-- 确认密码 -->
+            <MudText Typo="Typo.body1" Style="margin-bottom: 8px; font-weight: 500;">确认密码</MudText>
+            <MudTextField T="string"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          InputType="InputType.Password"
+                          Placeholder="请确认密码"
+                          PrependIcon="Icons.Material.Filled.Lock"
+                          Style="margin-bottom: 10px;"
+                          @bind-Value="ConfirmPassword" />
+            <!-- 注册按钮 -->
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Size="Size.Large"
+                       Class="mt-4"
+                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                       @onclick="RegisterLogin">
+                注册
+            </MudButton>
+            <!-- 已有账号？去登录 -->
+            <div style="text-align: center; margin-top: 20px;">
+                <MudText Typo="Typo.body2">已有账号？<MudLink Href="/" Color="Color.Primary">去登录</MudLink></MudText>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</div>
+
+@code {
+    private string Username { get; set; } = string.Empty;
+    private string Password { get; set; } = string.Empty;
+    private string ConfirmPassword { get; set; } = string.Empty;
+    private bool isSubmitting = false; // 用于防止重复提交
+
+    // 2. 实现注册逻辑
+    private async Task RegisterLogin()
+    {
+        // 防止重复点击提交
+        if (isSubmitting) return;
+        isSubmitting = true;
+
+        try
+        {
+            // 表单验证
+            if (string.IsNullOrWhiteSpace(Username))
+            {
+                Snackbar.Add("用户名不能为空！", Severity.Error);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(Password))
+            {
+                Snackbar.Add("密码不能为空！", Severity.Error);
+                return;
+            }
+            if (Password != ConfirmPassword)
+            {
+                Snackbar.Add("两次输入的密码不一致！", Severity.Error);
+                return;
+            }
+
+            // 检查用户名是否已存在
+            var existingUser = await DbContext.Login_db
+                                             .Where(u => u.Username == Username)
+                                             .FirstOrDefaultAsync();
+            if (existingUser != null)
+            {
+                Snackbar.Add("该用户名已被注册！", Severity.Error);
+                return;
+            }
+
+
+            var newUser = new Login_db
+            {
+                Username = Username,
+                CreatedTime = DateTime.Now ,
+                PasswordHash = Password,
+            };
+          
+
+            // 将新用户添加到数据库上下文
+            DbContext.Login_db.Add(newUser);
+
+            // 保存更改到数据库
+            await DbContext.SaveChangesAsync();
+
+            // 注册成功
+            Snackbar.Add("注册成功！即将跳转到登录页...", Severity.Success);
+
+            // 延迟一秒后跳转到登录页
+            await Task.Delay(1000);
+            NavManager.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            // 处理异常
+            Snackbar.Add($"注册失败：{ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            // 无论成功失败，都恢复提交状态
+            isSubmitting = false;
+        }
+    }
+}

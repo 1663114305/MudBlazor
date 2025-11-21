@@ -1,15 +1,17 @@
 ﻿@page "/"
 @using BlazorApp1.Components.Layout
 @using MudBlazor
-@* 关键：指定登录页用简化布局 *@
+@using BlazorApp1.Components.Models 
+@using Microsoft.EntityFrameworkCore 
+@using Microsoft.AspNetCore.Identity 
+
+@* 指定登录页用简化布局 *@
 @layout LoginLayout
 @rendermode InteractiveServer
 
 @inject NavigationManager NavManager
 @inject ISnackbar Snackbar
-
-
-
+@inject DBContext DbContext // 1. 注入数据库上下文
 
 <MudThemeProvider />
 <MudDialogProvider />
@@ -25,7 +27,6 @@
             </div>
 
             <!-- 用户名区域 -->
-            <MudText Typo="Typo.body1" Style="margin-bottom: 8px; font-weight: 500;">用户名</MudText>
             <MudTextField T="string"
                           Variant="Variant.Outlined"
                           FullWidth="true"
@@ -35,7 +36,6 @@
                           @bind-Value="Username" />
 
             <!-- 密码区域 -->
-            <MudText Typo="Typo.body1" Style="margin-bottom: 8px; font-weight: 500;">密码</MudText>
             <MudTextField T="string"
                           Variant="Variant.Outlined"
                           FullWidth="true"
@@ -50,11 +50,17 @@
                        Color="Color.Primary"
                        FullWidth="true"
                        Size="Size.Large"
-                       Style="margin-top: 20px;"
-                       @onclick="HandleLogin">
-                登录
+                       Class="mt-4"
+                       StartIcon="@Icons.Material.Filled.Send"
+                       @onclick="HandleLogin"
+                       Disabled="isLoggingIn">
+                @(isLoggingIn ? "登录中..." : "登录")
             </MudButton>
 
+            <!-- 注册链接 -->
+            <div style="text-align: center; margin-top: 20px;">
+                <MudText Typo="Typo.body2">还没有账号？<MudLink Href="/Register" Color="Color.Primary">去注册</MudLink></MudText>
+            </div>
         </MudCardContent>
     </MudCard>
 </div>
@@ -62,38 +68,60 @@
 @code {
     private string Username { get; set; } = string.Empty;
     private string Password { get; set; } = string.Empty;
+    private bool isLoggingIn = false; // 用于显示加载状态
 
-    private readonly List<(string Username, string Password)> _validUsers = new()
+    // 2. 将方法修改为 async Task
+    private async Task HandleLogin()
     {
-        ("admin", "123456"),
-        ("root", "123456"),
-        ("lsw", "123456"),
-        ("cyj", "123456"),
-        ("lr", "123456"),
+        if (isLoggingIn) return; // 防止重复点击
 
-
-    };
-
-    private void HandleLogin()
-    {
+        // 基本输入验证
         if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
         {
             Snackbar.Add("用户名和密码不能为空！", Severity.Error);
             return;
         }
 
-        bool isValidUser = _validUsers.Any(user =>
-            user.Username.Equals(Username, StringComparison.OrdinalIgnoreCase) &&
-            user.Password == Password);
+        isLoggingIn = true;
+        try
+        {
+            // 3. 从数据库中查询用户
+            var userFromDb = await DbContext.Login_db
+                                            .Where(u => u.Username == Username)
+                                            .FirstOrDefaultAsync();
 
-        if (isValidUser)
-        {
-            Snackbar.Add("登录成功！", Severity.Success);
-            NavManager.NavigateTo("/home");
+
+            if (userFromDb == null)
+            {
+                // 用户不存在，为了安全，提示可以模糊一点
+                Snackbar.Add("用户名或密码错误，请重试！", Severity.Error);
+            }
+            else
+            {
+                // 5. 验证输入的密码与数据库中的哈希值是否匹配
+                // PasswordVerificationResult.Success 表示匹配成功
+                if (userFromDb.PasswordHash == Password)
+                {
+                    // 密码正确，登录成功
+                    Snackbar.Add("登录成功！", Severity.Success);
+                    // 导航到主页或其他受保护的页面
+                    NavManager.NavigateTo("/home");
+                }
+                else
+                {
+                    // 密码错误
+                    Snackbar.Add("用户名或密码错误，请重试！", Severity.Error);
+                }
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add("用户名或密码错误，请重试！", Severity.Error);
+            // 处理可能发生的异常，如数据库连接问题
+            Snackbar.Add($"登录失败：{ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoggingIn = false; // 无论成功失败，都恢复按钮状态
         }
     }
 }
