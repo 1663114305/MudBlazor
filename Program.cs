@@ -55,11 +55,11 @@ using (var scope = app.Services.CreateScope())
 
         var defaultUsers = new List<Login_db>
         {
-            new Login_db { Username = "admin", PasswordHash = "123456" }, 
-            new Login_db { Username = "root", PasswordHash = "123456" } ,
-            new Login_db { Username = "lsw", PasswordHash = "123456" } ,
-            new Login_db { Username = "cyj", PasswordHash = "123456" } ,
-            new Login_db { Username = "lr", PasswordHash = "123456" } ,
+            new Login_db { Username = "admin", PasswordHash = "123456",email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now },
+            new Login_db { Username = "root", PasswordHash = "123456" ,email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now } ,
+            new Login_db { Username = "lsw", PasswordHash = "123456",email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now  } ,
+            new Login_db { Username = "cyj", PasswordHash = "123456" ,email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now } ,
+            new Login_db { Username = "lr", PasswordHash = "123456",email = "11111" ,CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now } ,
 
         };
 
@@ -79,6 +79,8 @@ using (var scope = app.Services.CreateScope())
                     Username = user.Username,
                     CreatedTime = DateTime.Now,
                     PasswordHash  = user.PasswordHash,
+                    email = user.email,
+                    LastLoginTime = DateTime.Now,
                     
                 };
                 // 对密码进行哈希处理

@@ -1,9 +1,12 @@
 ﻿@page "/Register"
 @using BlazorApp1.Components.Layout
 @using MudBlazor
-@using BlazorApp1.Components.Models // 引入 Login_db 模型
-@using Microsoft.EntityFrameworkCore // 引入 EF Core 用于数据库操作
-@using Microsoft.AspNetCore.Identity // 引入 PasswordHasher
+@using BlazorApp1.Components.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+@using RestSharp;
+@using System.ComponentModel.DataAnnotations; // 用于邮箱格式验证
 
 @* 关键：指定登录页用简化布局 *@
 @layout LoginLayout
@@ -11,7 +14,7 @@
 
 @inject NavigationManager NavManager
 @inject ISnackbar Snackbar
-@inject DBContext DbContext // 1. 注入我们的数据库上下文
+@inject DBContext DbContext // 注入数据库上下文
 
 <MudThemeProvider />
 <MudDialogProvider />
@@ -31,7 +34,7 @@
             <MudTextField T="string"
                           Variant="Variant.Outlined"
                           FullWidth="true"
-                          Placeholder="请输入用户名"
+                          Placeholder="请输入用户名（3-50字符）"
                           PrependIcon="Icons.Material.Filled.Person"
                           Style="margin-bottom: 20px;"
                           @bind-Value="Username" />
@@ -42,7 +45,7 @@
                           Variant="Variant.Outlined"
                           FullWidth="true"
                           InputType="InputType.Password"
-                          Placeholder="请输入密码"
+                          Placeholder="请输入密码（6-100字符）"
                           PrependIcon="Icons.Material.Filled.Lock"
                           Style="margin-bottom: 10px;"
                           @bind-Value="Password" />
@@ -56,6 +59,40 @@
                           PrependIcon="Icons.Material.Filled.Lock"
                           Style="margin-bottom: 10px;"
                           @bind-Value="ConfirmPassword" />
+
+            <!-- 电子邮箱 + 发送验证码 组合 -->
+            <MudGrid Spacing="2" Style="margin-bottom: 10px;">
+                <MudItem xs="8">
+                    <MudTextField T="string"
+                                  Variant="Variant.Outlined"
+                                  FullWidth="true"
+                                  Placeholder="请输入电子邮箱"
+                                  PrependIcon="Icons.Material.Filled.Email"
+                                  @bind-Value="Email" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Style="height: 56px;"
+                               @onclick="SendVerificationCode"
+                               Disabled="IsSendCodeButtonDisabled">
+                        <!-- 绑定优化后的属性 -->
+                        @(isSendingCode ? $"{countdownSeconds}s后重发" : "发送验证码")
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- 验证码输入框 -->
+            <MudText Typo="Typo.body1" Style="margin-bottom: 8px; font-weight: 500;">验证码</MudText>
+            <MudTextField T="string"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          Placeholder="请输入邮箱收到的6位验证码"
+                          PrependIcon="Icons.Material.Filled.VerifiedUser"
+                          Style="margin-bottom: 20px;"
+                          @bind-Value="VerificationCode" />
+
             <!-- 注册按钮 -->
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
@@ -63,9 +100,11 @@
                        Size="Size.Large"
                        Class="mt-4"
                        StartIcon="@Icons.Material.Filled.PersonAdd"
-                       @onclick="RegisterLogin">
-                注册
+                       @onclick="RegisterLogin"
+                       Disabled="isSubmitting || string.IsNullOrWhiteSpace(VerificationCode)">
+                @(isSubmitting ? "注册中..." : "注册")
             </MudButton>
+
             <!-- 已有账号？去登录 -->
             <div style="text-align: center; margin-top: 20px;">
                 <MudText Typo="Typo.body2">已有账号？<MudLink Href="/" Color="Color.Primary">去登录</MudLink></MudText>
@@ -78,21 +117,68 @@
     private string Username { get; set; } = string.Empty;
     private string Password { get; set; } = string.Empty;
     private string ConfirmPassword { get; set; } = string.Empty;
-    private bool isSubmitting = false; // 用于防止重复提交
+    private string Email { get; set; } = string.Empty;
+    private string VerificationCode { get; set; } = string.Empty; // 用户输入的验证码
+    private string GeneratedCode { get; set; } = string.Empty; // 服务器生成的验证码
+    private DateTime? CodeExpiryTime { get; set; } // 验证码过期时间（5分钟）
 
-    // 2. 实现注册逻辑
+    private bool isSubmitting = false; // 注册按钮加载状态
+    private bool isSendingCode = false; // 发送验证码按钮状态
+    private int countdownSeconds = 60; // 重发倒计时（60秒）
+    private bool IsSendCodeButtonDisabled =>
+       isSendingCode || string.IsNullOrWhiteSpace(Email) || !IsValidEmail(Email);
+
+    // --- SendCloud 配置（替换成你的实际配置）---
+    private const string ApiUser = "laiyue123";
+    private const string ApiKey = "449f239ad9979bebbd1d80e4c88d60af";
+    private const string FromEmail = "service@laiyue123.cn"; // 已验证的发件人邮箱
+    private const string FromName = "神动专属";
+    private const string SendCloudApiUrl = "https://api.sendcloud.net/apiv2/mail/send";
+
+    #region 核心逻辑
+
+    // 发送验证码
+    private async Task SendVerificationCode()
+    {
+        if (isSendingCode) return;
+
+        // 1. 验证邮箱格式（前端二次校验）
+        if (!IsValidEmail(Email))
+        {
+            Snackbar.Add("请输入有效的电子邮箱地址！", Severity.Error);
+            return;
+        }
+
+        // 2. 生成6位随机验证码 + 设置过期时间（保持不变）
+        GeneratedCode = GenerateRandomCode(6);
+        CodeExpiryTime = DateTime.Now.AddMinutes(5);
+
+        // 3. 启动倒计时，禁用按钮
+        isSendingCode = true;
+        await StartCountdown(); // 调用修改后的倒计时方法
+
+        // 4. 发送验证码邮件（保持不变）
+        await SendVerificationEmail(Email, GeneratedCode);
+    }
+
+    // 注册逻辑（包含验证码验证）
     private async Task RegisterLogin()
     {
-        // 防止重复点击提交
+        // 防止重复提交
         if (isSubmitting) return;
         isSubmitting = true;
 
         try
         {
-            // 表单验证
+            // ------------ 1. 表单基础验证 ------------
             if (string.IsNullOrWhiteSpace(Username))
             {
                 Snackbar.Add("用户名不能为空！", Severity.Error);
+                return;
+            }
+            if (Username.Length < 3 || Username.Length > 50)
+            {
+                Snackbar.Add("用户名长度必须在3-50个字符之间！", Severity.Error);
                 return;
             }
             if (string.IsNullOrWhiteSpace(Password))
@@ -100,53 +186,200 @@
                 Snackbar.Add("密码不能为空！", Severity.Error);
                 return;
             }
+            if (Password.Length < 6 || Password.Length > 100)
+            {
+                Snackbar.Add("密码长度必须在6-100个字符之间！", Severity.Error);
+                return;
+            }
             if (Password != ConfirmPassword)
             {
                 Snackbar.Add("两次输入的密码不一致！", Severity.Error);
                 return;
             }
-
-            // 检查用户名是否已存在
-            var existingUser = await DbContext.Login_db
-                                             .Where(u => u.Username == Username)
-                                             .FirstOrDefaultAsync();
-            if (existingUser != null)
+            if (string.IsNullOrWhiteSpace(Email) || !IsValidEmail(Email))
             {
-                Snackbar.Add("该用户名已被注册！", Severity.Error);
+                Snackbar.Add("请输入有效的电子邮箱！", Severity.Error);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(VerificationCode))
+            {
+                Snackbar.Add("请输入验证码！", Severity.Error);
                 return;
             }
 
+            // ------------ 2. 验证码验证 ------------
+            if (string.IsNullOrWhiteSpace(GeneratedCode))
+            {
+                Snackbar.Add("请先发送验证码！", Severity.Error);
+                return;
+            }
+            if (CodeExpiryTime < DateTime.Now)
+            {
+                Snackbar.Add("验证码已过期，请重新发送！", Severity.Error);
+                return;
+            }
+            if (!VerificationCode.Equals(GeneratedCode, StringComparison.OrdinalIgnoreCase))
+            {
+                Snackbar.Add("验证码输入错误！", Severity.Error);
+                return;
+            }
+
+            // ------------ 3. 数据库验证（用户名/邮箱唯一性）------------
+            var existingUser = await DbContext.Login_db
+                                             .Where(u => u.Username == Username || u.email == Email)
+                                             .FirstOrDefaultAsync();
+            if (existingUser != null)
+            {
+                Snackbar.Add("用户名或电子邮箱已被注册！", Severity.Error);
+                return;
+            }
 
             var newUser = new Login_db
             {
                 Username = Username,
-                CreatedTime = DateTime.Now ,
-                PasswordHash = Password,
+                email = Email,
+                PasswordHash = Password ,
+                CreatedTime = DateTime.Now,
+                LastLoginTime = DateTime.Now,
             };
-          
 
-            // 将新用户添加到数据库上下文
             DbContext.Login_db.Add(newUser);
-
-            // 保存更改到数据库
             await DbContext.SaveChangesAsync();
 
-            // 注册成功
+            // ------------ 5. 注册成功 ------------
             Snackbar.Add("注册成功！即将跳转到登录页...", Severity.Success);
-
-            // 延迟一秒后跳转到登录页
             await Task.Delay(1000);
             NavManager.NavigateTo("/");
         }
         catch (Exception ex)
         {
-            // 处理异常
             Snackbar.Add($"注册失败：{ex.Message}", Severity.Error);
         }
         finally
         {
-            // 无论成功失败，都恢复提交状态
             isSubmitting = false;
         }
     }
+
+    #endregion
+
+    #region 辅助方法
+
+    // 生成指定长度的随机数字验证码
+    private static string GenerateRandomCode(int length)
+    {
+        if (length <= 0)
+            throw new ArgumentOutOfRangeException(nameof(length), "验证码长度必须大于0");
+
+        var random = new Random();
+        var digits = new char[length];
+        for (int i = 0; i < length; i++)
+        {
+            digits[i] = Convert.ToChar('0' + random.Next(10));
+        }
+        return new string(digits);
+    }
+
+    // 验证邮箱格式（简单正则）
+    private bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            return false;
+
+        try
+        {
+            // 使用内置的数据注解验证邮箱格式
+            return new EmailAddressAttribute().IsValid(email);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // 发送验证码邮件（调用SendCloud API）
+    private async Task SendVerificationEmail(string toEmail, string code)
+    {
+        var client = new RestClient(SendCloudApiUrl);
+        var request = new RestRequest("", Method.Post);
+
+        // 添加SendCloud必要参数
+        request.AddParameter("apiUser", ApiUser);
+        request.AddParameter("apiKey", ApiKey);
+        request.AddParameter("from", FromEmail);
+        request.AddParameter("fromName", FromName);
+        request.AddParameter("to", toEmail);
+        request.AddParameter("subject", "【神动专属】注册验证码通知");
+
+        // 邮件内容（HTML格式，优化排版）
+        var htmlContent = $@"
+            <html>
+            <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+                <h3 style='color: #2c3e50;'>你好！</h3>
+                <p>你正在进行账号注册，本次验证码为：</p>
+                <p style='font-size: 24px; font-weight: bold; color: #e74c3c; letter-spacing: 2px;'>{code}</p>
+                <p>验证码有效期为 <strong>5分钟</strong>，请尽快完成注册。</p>
+                <p>如果不是你本人操作，请忽略此邮件，你的账号安全不会受到影响。</p>
+                <p style='margin-top: 20px; color: #7f8c8d; font-size: 14px;'>此致<br/>神动专属团队</p>
+            </body>
+            </html>";
+        var textContent = $"你的注册验证码是：{code}，5分钟内有效，请尽快完成注册。";
+
+        request.AddParameter("html", htmlContent);
+        request.AddParameter("plain", textContent);
+
+        try
+        {
+            Console.WriteLine($"正在向 {toEmail} 发送验证码邮件...");
+            var response = await client.ExecutePostAsync(request);
+
+            if (response.IsSuccessful)
+            {
+                var result = JsonSerializer.Deserialize<SendCloudResponse>(response.Content);
+                if (result?.result == true)
+                {
+                    Snackbar.Add("验证码邮件已发送！请查收（含垃圾箱）", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add($"邮件发送失败：{result?.errorMessage ?? "未知错误"}", Severity.Error);
+                }
+            }
+            else
+            {
+                Snackbar.Add($"邮件发送失败，状态码：{response.StatusCode}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"发送邮件异常：{ex.Message}", Severity.Error);
+        }
+    }
+
+    // 发送验证码倒计时（60秒）
+    private async Task StartCountdown()
+    {
+        countdownSeconds = 60;
+        while (countdownSeconds > 0)
+        {
+            await Task.Delay(1000);
+            countdownSeconds--;
+
+            // 关键：手动触发组件重新渲染，让界面同步更新倒计时数字
+            StateHasChanged();
+        }
+        isSendingCode = false;
+        StateHasChanged(); // 倒计时结束后，再触发一次渲染，恢复按钮文字
+    }
+
+    // SendCloud API响应模型
+    public class SendCloudResponse
+    {
+        public bool result { get; set; }
+        public string message { get; set; }
+        public string errorMessage { get; set; }
+        public object info { get; set; }
+    }
+
+    #endregion
 }
