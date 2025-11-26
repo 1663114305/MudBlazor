@@ -102,6 +102,10 @@
                 // PasswordVerificationResult.Success 表示匹配成功
                 if (userFromDb.PasswordHash == Password)
                 {
+                    userFromDb.LastLoginTime = DateTime.Now; 
+
+                    // 2. 保存修改到数据库
+                    await DbContext.SaveChangesAsync();
                     // 密码正确，登录成功
                     Snackbar.Add("登录成功！", Severity.Success);
                     // 导航到主页或其他受保护的页面
