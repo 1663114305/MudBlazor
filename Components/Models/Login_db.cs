@@ -27,5 +27,8 @@ namespace BlazorApp1.Components.Models
         public DateTime ? CreatedTime { get; set; }
 
 
+        public int quanxian { get; set; } // 权限字段，表示用户权限等级
+
+
     }
 }

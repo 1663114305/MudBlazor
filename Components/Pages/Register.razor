@@ -241,6 +241,7 @@
                 PasswordHash = Password ,
                 CreatedTime = DateTime.Now,
                 LastLoginTime = DateTime.Now,
+                quanxian  = 4, // 默认注册用户权限为普通用户
             };
 
             DbContext.Login_db.Add(newUser);

@@ -14,4 +14,10 @@
     <PackageReference Include="RestSharp" Version="112.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="wwwroot\Downloads\DEBUG包1.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

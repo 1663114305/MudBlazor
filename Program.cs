@@ -26,6 +26,10 @@ builder.Services.AddRazorComponents()
 // 启用 MudBlazor 的主题、组件交互等核心功能（如按钮、表单、对话框等组件）
 builder.Services.AddMudServices();
 
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 524288000; // 500MB
+});
 // 注册自定义仓储服务（依赖注入：面向接口编程）
 // AddScoped：作用域生命周期（每次 HTTP 请求创建一个新实例，请求结束释放）
 // IStudentRepository：仓储接口（定义数据操作规范）
@@ -55,11 +59,11 @@ using (var scope = app.Services.CreateScope())
 
         var defaultUsers = new List<Login_db>
         {
-            new Login_db { Username = "admin", PasswordHash = "123456",email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now },
-            new Login_db { Username = "root", PasswordHash = "123456" ,email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now } ,
-            new Login_db { Username = "lsw", PasswordHash = "123456",email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now  } ,
-            new Login_db { Username = "cyj", PasswordHash = "123456" ,email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now } ,
-            new Login_db { Username = "lr", PasswordHash = "123456",email = "11111" ,CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now } ,
+            new Login_db { Username = "admin", PasswordHash = "123456",email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now,quanxian = 4 },
+            new Login_db { Username = "root", PasswordHash = "123456" ,email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now ,quanxian = 4 } ,
+            new Login_db { Username = "lsw", PasswordHash = "123456",email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now ,quanxian = 4  } ,
+            new Login_db { Username = "cyj", PasswordHash = "123456" ,email = "11111",CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now ,quanxian = 4 } ,
+            new Login_db { Username = "lr", PasswordHash = "123456",email = "11111" ,CreatedTime = DateTime.Now ,LastLoginTime = DateTime.Now,quanxian = 4  } ,
 
         };
 
@@ -81,6 +85,7 @@ using (var scope = app.Services.CreateScope())
                     PasswordHash  = user.PasswordHash,
                     email = user.email,
                     LastLoginTime = DateTime.Now,
+                    quanxian = user.quanxian,
                     
                 };
                 // 对密码进行哈希处理

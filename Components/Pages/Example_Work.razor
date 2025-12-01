@@ -1,0 +1,43 @@
+﻿@page "/Example_Work"
+
+<h1>软件作品示例下载</h1>
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<MudCard>
+    <MudCardContent>
+        <MudText Typo="Typo.h5">DEBUG包下载</MudText>
+        <MudList T = "string">
+            <MudListItem>
+                <a href="/Downloads/DEBUG包1.zip" download="DEBUG包1.zip" 
+                   class="mud-link-primary mud-button-text">
+                    <MudIcon Icon="Icons.Material.Filled.Download" /> 
+                    下载DEBUG包1（ZIP）
+                </a>
+            </MudListItem>
+            <MudListItem>
+                <a href="/Downloads/DEBUG包2.zip" download="DEBUG包2.zip" 
+                   class="mud-link-primary mud-button-text">
+                    <MudIcon Icon="Icons.Material.Filled.Download" /> 
+                    下载DEBUG包2（ZIP）
+                </a>
+            </MudListItem>
+        </MudList>
+    </MudCardContent>
+</MudCard>
+
+
+
+
+
+
+
+
+
+
+
+
+
+@code {
+
+}
