@@ -39,6 +39,8 @@ builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 
 builder.Services.AddDbContext<DBContext>(options =>
                 options.UseSqlite("Data Source=MySqlite.db"));
+// 注册用户状态服务（Scoped，每个会话独立）
+builder.Services.AddScoped<CustomUserState>();
 
 // 构建 Web 应用程序实例（完成服务配置，生成可运行的应用）
 var app = builder.Build();

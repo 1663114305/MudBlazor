@@ -1,6 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@using BlazorApp1.Components.Models
 @using MudBlazor
-
+@inject CustomUserState UserState
 
     <!-- 侧边栏 -->
     <MudDrawer Open="@_sidebarOpen" Anchor="Anchor.Left   " Variant="DrawerVariant.Persistent">
@@ -8,10 +9,14 @@
             <MudNavMenu Style="background-color:#f8fafc; border-radius:4px;">
                 <MudNavLink Icon="@Icons.Material.Filled.Home" Match="NavLinkMatch.All" Href="/home">
                     主页
+            </MudNavLink>
+            @if (UserState.CurrentUser?.quanxian == 1)
+            {
+                <MudNavLink Icon="@Icons.Material.Filled.Download" Href="/Example_Work">
+                    作品示例下载
                 </MudNavLink>
-            <MudNavLink Icon="@Icons.Material.Filled.Download" Href="/Example_Work">
-                    软件作品示例下载
-                </MudNavLink>
+            }
+                
                 <MudNavLink Icon="@Icons.Material.Filled.Cloud" Href="/weather">
                     天气
                 </MudNavLink>

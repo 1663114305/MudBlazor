@@ -12,6 +12,7 @@
 @inject NavigationManager NavManager
 @inject ISnackbar Snackbar
 @inject DBContext DbContext // 1. 注入数据库上下文
+@inject CustomUserState UserState
 
 <MudThemeProvider />
 <MudDialogProvider />
@@ -106,6 +107,9 @@
 
                     // 2. 保存修改到数据库
                     await DbContext.SaveChangesAsync();
+
+                    // 2. 存储当前用户到Scoped服务
+                    UserState.SetCurrentUser(userFromDb);
                     // 密码正确，登录成功
                     Snackbar.Add("登录成功！", Severity.Success);
                     // 导航到主页或其他受保护的页面
