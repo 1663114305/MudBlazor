@@ -12,13 +12,10 @@
             <MudNavLink Icon="@Icons.Material.Filled.Home" Match="NavLinkMatch.All" Href="/home">
                 主页
             </MudNavLink>
-            @if (UserState.CurrentUser?.quanxian == 1)
-            {
-                <MudNavLink Icon="@Icons.Material.Filled.Download" Href="/Example_Work">
-                    作品示例下载
-                </MudNavLink>
-            }
-
+            <MudNavLink Icon="@Icons.Material.Filled.Download" OnClick="@(async () => await HandleExample_Work_Click())">
+                作品示例下载
+            </MudNavLink>
+              
             <!-- 天气链接 - 自定义点击事件 -->
             <MudNavLink Icon="@Icons.Material.Filled.Cloud" OnClick="@(async () => await HandleWeatherClick())">
                 天气
@@ -68,6 +65,31 @@
         {
             // 权限足够，跳转到天气页面
             NavigationManager.NavigateTo("/weather");
+        }
+    }
+
+
+    /// <summary>
+    /// 处理作品示例链接点击事件
+    /// </summary>
+    private async Task HandleExample_Work_Click()
+    {
+        // 检查用户权限
+        if (UserState.CurrentUser?.quanxian > 1)
+        {
+            // 显示权限不足弹窗
+            await DialogService.ShowMessageBox(
+                "权限不足",
+                $"您的权限等级 ({UserState.CurrentUser.quanxian}) 不足，无法访问作品示例。<br/>" +
+                "需要权限等级 1 或更低才能访问。<br/><br/>" +
+                "请联系管理员获取更高权限。",
+                yesText: "确定",
+                cancelText: null);
+        }
+        else
+        {
+            // 权限足够，跳转到天气页面
+            NavigationManager.NavigateTo("/Example_Work");
         }
     }
 }
