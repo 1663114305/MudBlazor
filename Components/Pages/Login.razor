@@ -109,7 +109,7 @@
                     await DbContext.SaveChangesAsync();
 
                     // 2. 存储当前用户到Scoped服务
-                    UserState.SetCurrentUser(userFromDb);
+                    await UserState.SetCurrentUser(userFromDb);
                     // 密码正确，登录成功
                     Snackbar.Add("登录成功！", Severity.Success);
                     // 导航到主页或其他受保护的页面

@@ -1,6 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@using BlazorApp1.Components.Models
 @using MudBlazor
-
+@inject CustomUserState UserState
 <MudThemeProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -14,6 +15,8 @@
                        OnClick="ToggleDrawer" />
 
         <MudText Typo="Typo.h6" Style="font-weight: bold; color: white; margin-left: 16px;">神动专属</MudText>
+        <MudText Typo="Typo.h6" Style="font-weight: bold; color: white; margin-left: 100px;">用户名：@(UserState.CurrentUser?.Username ?? "神动")</MudText>
+
 
         <MudSpacer />
 
@@ -43,6 +46,7 @@
 
 @code {
     [Inject] private NavigationManager NavManager { get; set; }
+    private bool _hasRestoredUserState = false;
 
     private bool _drawerOpen = true;
 
@@ -51,12 +55,22 @@
         _drawerOpen = !_drawerOpen;
     }
 
-    private void Logout()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && !_hasRestoredUserState)
+        {
+            await UserState.RestoreUserState();
+            _hasRestoredUserState = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Logout()
+    {
+        await UserState.ClearCurrentUser();
         NavManager.NavigateTo("/");
     }
 }
-
 <style>
     .app-container {
         height: 100vh;

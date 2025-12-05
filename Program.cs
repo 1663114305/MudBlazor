@@ -8,6 +8,7 @@ using BlazorApp1.Components.Pages;
 using BlazorApp1.Data;
 // 导入自定义模型命名空间（如 Student、User 等实体类）
 using BlazorApp1.Models;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 // 导入 MudBlazor 组件库的服务命名空间（用于使用 MudBlazor 的 UI 组件和功能）
@@ -39,6 +40,7 @@ builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 
 builder.Services.AddDbContext<DBContext>(options =>
                 options.UseSqlite("Data Source=MySqlite.db"));
+builder.Services.AddScoped<ProtectedSessionStorage>();
 // 注册用户状态服务（Scoped，每个会话独立）
 builder.Services.AddScoped<CustomUserState>();
 
