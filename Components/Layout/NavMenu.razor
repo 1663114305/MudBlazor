@@ -2,13 +2,15 @@
 @using BlazorApp1.Components.Models
 @using MudBlazor
 @inject CustomUserState UserState
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
 
-    <!-- 侧边栏 -->
-    <MudDrawer Open="@_sidebarOpen" Anchor="Anchor.Left   " Variant="DrawerVariant.Persistent">
-        <div Style="padding: 1rem;">
-            <MudNavMenu Style="background-color:#f8fafc; border-radius:4px;">
-                <MudNavLink Icon="@Icons.Material.Filled.Home" Match="NavLinkMatch.All" Href="/home">
-                    主页
+<!-- 侧边栏 -->
+<MudDrawer Open="@_sidebarOpen" Anchor="Anchor.Left" Variant="DrawerVariant.Persistent">
+    <div Style="padding: 1rem;">
+        <MudNavMenu Style="background-color:#f8fafc; border-radius:4px;">
+            <MudNavLink Icon="@Icons.Material.Filled.Home" Match="NavLinkMatch.All" Href="/home">
+                主页
             </MudNavLink>
             @if (UserState.CurrentUser?.quanxian == 1)
             {
@@ -16,25 +18,26 @@
                     作品示例下载
                 </MudNavLink>
             }
-                
-                <MudNavLink Icon="@Icons.Material.Filled.Cloud" Href="/weather">
-                    天气
-                </MudNavLink>
-                <MudNavLink Icon="@Icons.Material.Filled.List" Href="/student/list">
-                    学生列表
-                </MudNavLink>
-                <MudNavLink Icon="@Icons.Material.Filled.ChatBubble" Href="/AI_TextAPI">
-                        AI对话助手
-                    </MudNavLink>
-                </MudNavMenu>
-        </div>
-    </MudDrawer>
 
-    <!-- 主内容区 -->
-    <MudMainContent>
-        @Body
-    </MudMainContent>
+            <!-- 天气链接 - 自定义点击事件 -->
+            <MudNavLink Icon="@Icons.Material.Filled.Cloud" OnClick="@(async () => await HandleWeatherClick())">
+                天气
+            </MudNavLink>
 
+            <MudNavLink Icon="@Icons.Material.Filled.List" Href="/student/list">
+                学生列表
+            </MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.ChatBubble" Href="/AI_TextAPI">
+                AI对话助手
+            </MudNavLink>
+        </MudNavMenu>
+    </div>
+</MudDrawer>
+
+<!-- 主内容区 -->
+<MudMainContent>
+    @Body
+</MudMainContent>
 
 @code {
     private bool _sidebarOpen = true;
@@ -42,5 +45,29 @@
     private void ToggleSidebar()
     {
         _sidebarOpen = !_sidebarOpen;
+    }
+
+    /// <summary>
+    /// 处理天气链接点击事件
+    /// </summary>
+    private async Task HandleWeatherClick()
+    {
+        // 检查用户权限
+        if (UserState.CurrentUser?.quanxian > 3)
+        {
+            // 显示权限不足弹窗
+            await DialogService.ShowMessageBox(
+                "权限不足",
+                $"您的权限等级 ({UserState.CurrentUser.quanxian}) 不足，无法访问天气功能。<br/>" +
+                "需要权限等级 3 或更低才能访问。<br/><br/>" +
+                "请联系管理员获取更高权限。",
+                yesText: "确定",
+                cancelText: null);
+        }
+        else
+        {
+            // 权限足够，跳转到天气页面
+            NavigationManager.NavigateTo("/weather");
+        }
     }
 }
