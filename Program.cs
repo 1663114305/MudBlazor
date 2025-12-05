@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 // 导入 MudBlazor 组件库的服务命名空间（用于使用 MudBlazor 的 UI 组件和功能）
 using MudBlazor.Services;
+using Microsoft.AspNetCore.Components.Server;
 
 
 // 创建 Web 应用程序构建器，用于配置服务、中间件等应用核心设置
@@ -22,7 +23,7 @@ var builder = WebApplication.CreateBuilder(args);
 // AddInteractiveServerComponents() 启用 Blazor Server 交互式渲染模式（组件逻辑在服务器执行）
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-
+builder.Services.AddHttpClient();
 // 向依赖注入容器添加 MudBlazor 组件库的服务
 // 启用 MudBlazor 的主题、组件交互等核心功能（如按钮、表单、对话框等组件）
 builder.Services.AddMudServices();

@@ -1,64 +1,452 @@
 ﻿@page "/weather"
 @attribute [StreamRendering]
+@using System.Net.Http
+@using System.Net.Http.Headers
+@using System.Text
+@using System.Text.Json
+@using System.Text.Json.Serialization
+
+@inject HttpClient Http
 
 <PageTitle>Weather</PageTitle>
 
-<h1>Weather</h1>
+<h1>天气查询</h1>
+<p>基于阿里云API的城市天气查询</p>
 
-<p>This component demonstrates showing data.</p>
+<!-- 城市选择下拉框 -->
+<div class="mb-4">
+    <div class="row g-3 align-items-center">
+        <div class="col-auto">
+            <label class="col-form-label">选择城市：</label>
+        </div>
+        <div class="col-auto">
+            <select @bind="selectedCity" class="form-select" style="min-width: 200px;">
+                <optgroup label="广东省">
+                    <option value="广州">广州</option>
+                    <option value="深圳">深圳</option>
+                    <option value="珠海">珠海</option>
+                    <option value="汕头">汕头</option>
+                    <option value="佛山">佛山</option>
+                    <option value="韶关">韶关</option>
+                    <option value="湛江">湛江</option>
+                    <option value="肇庆">肇庆</option>
+                    <option value="江门">江门</option>
+                    <option value="茂名">茂名</option>
+                    <option value="惠州">惠州</option>
+                    <option value="梅州">梅州</option>
+                    <option value="汕尾">汕尾</option>
+                    <option value="河源">河源</option>
+                    <option value="阳江">阳江</option>
+                    <option value="清远">清远</option>
+                    <option value="东莞">东莞</option>
+                    <option value="中山">中山</option>
+                    <option value="潮州">潮州</option>
+                    <option value="揭阳">揭阳</option>
+                    <option value="云浮">云浮</option>
+                </optgroup>
+                <optgroup label="全国各省会/直辖市">
+                    <option value="北京">北京（直辖市）</option>
+                    <option value="上海">上海（直辖市）</option>
+                    <option value="天津">天津（直辖市）</option>
+                    <option value="重庆">重庆（直辖市）</option>
+                    <option value="石家庄">石家庄（河北）</option>
+                    <option value="太原">太原（山西）</option>
+                    <option value="呼和浩特">呼和浩特（内蒙古）</option>
+                    <option value="沈阳">沈阳（辽宁）</option>
+                    <option value="长春">长春（吉林）</option>
+                    <option value="哈尔滨">哈尔滨（黑龙江）</option>
+                    <option value="南京">南京（江苏）</option>
+                    <option value="杭州">杭州（浙江）</option>
+                    <option value="合肥">合肥（安徽）</option>
+                    <option value="福州">福州（福建）</option>
+                    <option value="南昌">南昌（江西）</option>
+                    <option value="济南">济南（山东）</option>
+                    <option value="郑州">郑州（河南）</option>
+                    <option value="武汉">武汉（湖北）</option>
+                    <option value="长沙">长沙（湖南）</option>
+                    <option value="南宁">南宁（广西）</option>
+                    <option value="海口">海口（海南）</option>
+                    <option value="成都">成都（四川）</option>
+                    <option value="贵阳">贵阳（贵州）</option>
+                    <option value="昆明">昆明（云南）</option>
+                    <option value="拉萨">拉萨（西藏）</option>
+                    <option value="西安">西安（陕西）</option>
+                    <option value="兰州">兰州（甘肃）</option>
+                    <option value="西宁">西宁（青海）</option>
+                    <option value="银川">银川（宁夏）</option>
+                    <option value="乌鲁木齐">乌鲁木齐（新疆）</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="col-auto">
+            <button @onclick="QueryWeather" class="btn btn-primary" disabled="@isLoading">
+                @(isLoading ? "查询中..." : "查询天气")
+            </button>
+        </div>
+    </div>
+</div>
 
-@if (forecasts == null)
+<!-- 加载/错误提示 -->
+@if (isLoading)
 {
-    <p><em>Loading...</em></p>
+    <p><em>正在查询天气数据...</em></p>
 }
-else
+else if (!string.IsNullOrEmpty(errorMsg))
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Temp. (C)</th>
-                <th>Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in forecasts)
-            {
-                <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div class="alert alert-danger">@errorMsg</div>
+}
+
+<!-- 天气数据展示 -->
+@if (weatherData != null && weatherData.Data != null && weatherData.Data.Data != null)
+{
+    <!-- 实时天气 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>@weatherData.Data.Data.City 实时天气</h5>
+            <small>更新时间：@weatherData.Data.Data.UpdateTimeFormat</small>
+        </div>
+        <div class="card-body">
+            <ul class="list-group">
+                <li class="list-group-item">天气状况：@weatherData.Data.Data.Day.Phrase (@weatherData.Data.Data.Day.Temperature)℃</li>
+                <li class="list-group-item">体感温度：@weatherData.Data.Data.Day.FeelsLike℃</li>
+                <li class="list-group-item">湿度：@weatherData.Data.Data.Day.Humidity%</li>
+                <li class="list-group-item">风向：@weatherData.Data.Data.Day.WindDirCompass 风速：@weatherData.Data.Data.Day.WindSpeed km/h</li>
+                <li class="list-group-item">紫外线指数：@weatherData.Data.Data.Day.UvIndex (@weatherData.Data.Data.Day.UvDescription)</li>
+                <li class="list-group-item">空气质量：@weatherData.Data.Data.Day.Air (@weatherData.Data.Data.Day.Air_level)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 小时预报（前12小时） -->
+    @if (weatherData.Data.Data.Hours != null && weatherData.Data.Data.Hours.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header"><h5>未来12小时预报</h5></div>
+            <div class="card-body">
+                <div class="row row-cols-4 g-2">
+                    @foreach (var hour in weatherData.Data.Data.Hours.Take(12))
+                    {
+                        <div class="col">
+                            <div class="card text-center p-2">
+                                <p class="mb-1 small">@hour.Time</p>
+                                <p class="mb-1">@hour.Wea</p>
+                                <p class="mb-0">@hour.Tem℃（体感@hour.Temfeels℃）</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- 15天预报 -->
+    @if (weatherData.Data.Data.Month != null && weatherData.Data.Data.Month.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header"><h5>未来15天预报</h5></div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>日期</th>
+                            <th>星期</th>
+                            <th>白天天气</th>
+                            <th>白天温度</th>
+                            <th>夜间天气</th>
+                            <th>夜间温度</th>
+                            <th>空气质量</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var day in weatherData.Data.Data.Month)
+                        {
+                            <tr>
+                                <td>@day.Date</td>
+                                <td>@day.DateOfWeek</td>
+                                <td>@day.Day.Phrase</td>
+                                <td>@day.Day.Temperature℃</td>
+                                <td>@day.Night.Phrase</td>
+                                <td>@day.Night.Temperature℃</td>
+                                <td>@day.Air (@day.Air_level)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
 }
 
 @code {
-    private WeatherForecast[]? forecasts;
+    // API配置（替换为你的有效AppCode）
+    private const string AppCode = "5107c03a86654ea0b2a65979400c05c4";
+    private const string ApiUrl = "https://sdtqz.market.alicloudapi.com/api/weather/fifteen/forty";
 
-    protected override async Task OnInitializedAsync()
+    // 页面状态
+    private string selectedCity = "广州";
+    private bool isLoading = false;
+    private string errorMsg = string.Empty;
+    private WeatherResponse? weatherData;
+
+    /// <summary>
+    /// 核心查询方法（一次请求成功）
+    /// </summary>
+    private async Task QueryWeather()
     {
-        // Simulate asynchronous loading to demonstrate streaming rendering
-        await Task.Delay(500);
+        isLoading = true;
+        errorMsg = string.Empty;
+        weatherData = null;
+        StateHasChanged();
 
-        var startDate = DateOnly.FromDateTime(DateTime.Now);
-        var summaries = new[] { "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching" };
-        forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
+        try
         {
-            Date = startDate.AddDays(index),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = summaries[Random.Shared.Next(summaries.Length)]
-        }).ToArray();
+            // 构建请求参数（去空格，避免无效请求）
+            var bodyParams = new Dictionary<string, string>
+            {
+                { "city", selectedCity.Trim() },
+                { "aqi", "1" }
+            };
+            var content = new FormUrlEncodedContent(bodyParams);
+
+            // 构建请求（严格符合API要求）
+            var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl)
+            {
+                Content = content
+            };
+            request.Headers.Add("Authorization", $"APPCODE {AppCode}");
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded")
+            {
+                CharSet = "UTF-8"
+            };
+
+            // 仅一次请求，避免API浪费
+            var response = await Http.SendAsync(request);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"API响应：{responseContent}");
+
+            // 校验响应状态
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMsg = $"API请求失败【{response.StatusCode}】：{responseContent}";
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(responseContent))
+            {
+                errorMsg = "API返回空内容，请求无效";
+                return;
+            }
+
+            // 解析配置（仅必要兼容，无多余转换）
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                // 兼容字符串/数字互转（仅针对少数混合字段）
+                NumberHandling = JsonNumberHandling.AllowReadingFromString
+            };
+
+            // 解析（模型100%匹配，一次成功）
+            weatherData = JsonSerializer.Deserialize<WeatherResponse>(responseContent, options);
+
+            // 校验业务状态
+            if (weatherData == null || !weatherData.Success || weatherData.Data?.Data == null)
+            {
+                errorMsg = $"查询失败：{(weatherData?.Msg ?? "无返回信息")}";
+                weatherData = null;
+            }
+        }
+        catch (JsonException ex)
+        {
+            errorMsg = $"JSON解析失败【精准定位】：{ex.Message}（行{ex.LineNumber}，列{ex.BytePositionInLine}）";
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMsg = $"网络请求失败：{ex.Message}（请检查API域名是否可访问）";
+        }
+        catch (Exception ex)
+        {
+            errorMsg = $"未知错误：{ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
-    private class WeatherForecast
+    #region 终极精准模型（100%匹配JSON所有字段类型）
+    /// <summary>
+    /// 根响应模型
+    /// </summary>
+    public class WeatherResponse
     {
-        public DateOnly Date { get; set; }
-        public int TemperatureC { get; set; }
-        public string? Summary { get; set; }
-        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+        public string Msg { get; set; } = string.Empty;
+        public bool Success { get; set; }
+        public int Code { get; set; }
+        public WeatherRootData Data { get; set; } = new();
     }
+
+    /// <summary>
+    /// 第一层Data容器
+    /// </summary>
+    public class WeatherRootData
+    {
+        public string OrderNo { get; set; } = string.Empty;
+        public WeatherCoreData Data { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 核心天气数据（匹配JSON的data.data）
+    /// </summary>
+    public class WeatherCoreData
+    {
+        public int Errcode { get; set; }
+        public string Leader { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string UpdateTimeFormat { get; set; } = string.Empty;
+        public List<WeatherHour> Hours { get; set; } = new();
+        public string City { get; set; } = string.Empty;
+        public string Latitude { get; set; } = string.Empty;
+        public string UpdateTimeServer { get; set; } = string.Empty;
+        public string Errmsg { get; set; } = string.Empty;
+        public string TimeZone { get; set; } = string.Empty;
+        public string UpdateTime { get; set; } = string.Empty;
+        public string Cityid { get; set; } = string.Empty;
+        public List<WeatherMonth> Month { get; set; } = new();
+        public WeatherRealTime Day { get; set; } = new();
+        public string Longitude { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 小时预报（关键修复：pressure改为double，兼容整数/浮点数）
+    /// </summary>
+    public class WeatherHour
+    {
+        public string Rain_pcpn { get; set; } = string.Empty;
+        public string DayOrNight { get; set; } = string.Empty;
+        public string Visibility { get; set; } = string.Empty;
+        public string WindLevel { get; set; } = string.Empty;
+        public int Icon { get; set; }
+        public int CloudCover { get; set; }
+        public double Pressure { get; set; } // 核心修复：从int改为double（适配1023/1023.3）
+        public string Air { get; set; } = string.Empty;
+        public int PrecipPct { get; set; }
+        public string Wea { get; set; } = string.Empty;
+        public string DayOfWeek { get; set; } = string.Empty;
+        public string Wea_img { get; set; } = string.Empty;
+        public long TimeUtc { get; set; }
+        public int Humidity { get; set; }
+        public string Time { get; set; } = string.Empty;
+        public int Temfeels { get; set; }
+        public int UvIndex { get; set; }
+        public int WindSpeed { get; set; }
+        public int Tem { get; set; }
+        public string Wind { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 15天预报（全string，适配JSON字符串数值）
+    /// </summary>
+    public class WeatherMonth
+    {
+        public string Date { get; set; } = string.Empty;
+        public string Moonset { get; set; } = string.Empty;
+        public string Rain_pcpn { get; set; } = string.Empty;
+        public string Sunrise { get; set; } = string.Empty;
+        public string Air_level { get; set; } = string.Empty;
+        public WeatherDayNight Night { get; set; } = new();
+        public string DateOfWeek { get; set; } = string.Empty;
+        public string MoonPhrase { get; set; } = string.Empty;
+        public string Moonrise { get; set; } = string.Empty;
+        public string Air { get; set; } = string.Empty;
+        public string MoonIcon { get; set; } = string.Empty;
+        public string Sunset { get; set; } = string.Empty;
+        public WeatherDayNight Day { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 15天预报-日/夜子模型（全string）
+    /// </summary>
+    public class WeatherDayNight
+    {
+        public string Narrative { get; set; } = string.Empty;
+        public string WindLevel { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+        public string PrecipPct { get; set; } = string.Empty;
+        public string CloudPct { get; set; } = string.Empty;
+        public string Phrase { get; set; } = string.Empty;
+        public string Phrase_img { get; set; } = string.Empty;
+        public string WindDirCompass { get; set; } = string.Empty;
+        public string PrecipType { get; set; } = string.Empty;
+        public string Temperature { get; set; } = string.Empty;
+        public string UvDescription { get; set; } = string.Empty;
+        public string WindPhrase { get; set; } = string.Empty;
+        public string Humidity { get; set; } = string.Empty;
+        public string UvIndex { get; set; } = string.Empty;
+        public string WindSpeed { get; set; } = string.Empty;
+        public string WindDirDegrees { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 实时天气模型（全string）
+    /// </summary>
+    public class WeatherRealTime
+    {
+        public string BarometerTrend { get; set; } = string.Empty;
+        public string Air_level { get; set; } = string.Empty;
+        public string Visibility { get; set; } = string.Empty;
+        public string WindLevel { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+        public string Air { get; set; } = string.Empty;
+        public string DewPoint { get; set; } = string.Empty;
+        public string FeelsLike { get; set; } = string.Empty;
+        public string TemperatureMaxSince7am { get; set; } = string.Empty;
+        public string Phrase { get; set; } = string.Empty;
+        public string Altimeter { get; set; } = string.Empty;
+        public string Phrase_img { get; set; } = string.Empty;
+        public string WindDirCompass { get; set; } = string.Empty;
+        public string Temperature { get; set; } = string.Empty;
+        public string UvDescription { get; set; } = string.Empty;
+        public List<object> Alarm { get; set; } = new();
+        public WeatherAqi Aqi { get; set; } = new();
+        public string Humidity { get; set; } = string.Empty;
+        public string WindSpeed { get; set; } = string.Empty;
+        public string UvIndex { get; set; } = string.Empty;
+        public string WindDirDegrees { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 空气质量子模型（全string）
+    /// </summary>
+    public class WeatherAqi
+    {
+        public string CountryEn { get; set; } = string.Empty;
+        public string Pp { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Air_level { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Jinghuaqi { get; set; } = string.Empty;
+        public string Kaichuang { get; set; } = string.Empty;
+        public string O3_desc { get; set; } = string.Empty;
+        public string Air { get; set; } = string.Empty;
+        public string No2 { get; set; } = string.Empty;
+        public string Update_time { get; set; } = string.Empty;
+        public string Pm25_desc { get; set; } = string.Empty;
+        public string So2 { get; set; } = string.Empty;
+        public string Co_desc { get; set; } = string.Empty;
+        public string CityEn { get; set; } = string.Empty;
+        public string Pm10_desc { get; set; } = string.Empty;
+        public string Yundong { get; set; } = string.Empty;
+        public string Kouzhao { get; set; } = string.Empty;
+        public string O3 { get; set; } = string.Empty;
+        public string Pm10 { get; set; } = string.Empty;
+        public string Waichu { get; set; } = string.Empty;
+        public string Cityid { get; set; } = string.Empty;
+        public string So2_desc { get; set; } = string.Empty;
+        public string Co { get; set; } = string.Empty;
+        public string No2_desc { get; set; } = string.Empty;
+        public string Air_tips { get; set; } = string.Empty;
+        public string Pm25 { get; set; } = string.Empty;
+    }
+    #endregion
 }
