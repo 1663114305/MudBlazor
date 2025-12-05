@@ -29,6 +29,9 @@ namespace BlazorApp1.Components.Models
 
         public int quanxian { get; set; } // 权限字段，表示用户权限等级
 
+        public string Other { get; set; }
+
+
 
     }
 }

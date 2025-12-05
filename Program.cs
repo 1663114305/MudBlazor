@@ -87,11 +87,12 @@ using (var scope = app.Services.CreateScope())
                 {
                     Username = user.Username,
                     CreatedTime = DateTime.Now,
-                    PasswordHash  = user.PasswordHash,
+                    PasswordHash = user.PasswordHash,
                     email = user.email,
                     LastLoginTime = DateTime.Now,
                     quanxian = user.quanxian,
-                    
+                    Other = "",
+
                 };
                 // 对密码进行哈希处理
 

@@ -59,6 +59,16 @@
                           PrependIcon="Icons.Material.Filled.Lock"
                           Style="margin-bottom: 10px;"
                           @bind-Value="ConfirmPassword" />
+            <!-- 权限密钥 -->
+            <MudText Typo="Typo.body1" Style="margin-bottom: 8px; font-weight: 500;">权限密钥</MudText>
+            <MudTextField T="string"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          InputType="InputType.Text"
+                          Placeholder="请输入权限密钥（没有可不填）"
+                          PrependIcon="Icons.Material.Filled.Key"
+                          Style="margin-bottom: 10px;"
+                          @bind-Value="Permissionkey" />
 
             <!-- 电子邮箱 + 发送验证码 组合 -->
             <MudGrid Spacing="2" Style="margin-bottom: 10px;">
@@ -117,6 +127,8 @@
     private string Username { get; set; } = string.Empty;
     private string Password { get; set; } = string.Empty;
     private string ConfirmPassword { get; set; } = string.Empty;
+    private string Permissionkey { get; set; } = string.Empty;
+
     private string Email { get; set; } = string.Empty;
     private string VerificationCode { get; set; } = string.Empty; // 用户输入的验证码
     private string GeneratedCode { get; set; } = string.Empty; // 服务器生成的验证码
@@ -125,6 +137,8 @@
     private bool isSubmitting = false; // 注册按钮加载状态
     private bool isSendingCode = false; // 发送验证码按钮状态
     private int countdownSeconds = 60; // 重发倒计时（60秒）
+    private int quanxian = 4; //权限等级，用于输入密钥时更改权限等级
+
     private bool IsSendCodeButtonDisabled =>
        isSendingCode || string.IsNullOrWhiteSpace(Email) || !IsValidEmail(Email);
 
@@ -142,22 +156,27 @@
     {
         if (isSendingCode) return;
 
-        // 1. 验证邮箱格式（前端二次校验）
+        // 1. 验证邮箱格式
         if (!IsValidEmail(Email))
         {
             Snackbar.Add("请输入有效的电子邮箱地址！", Severity.Error);
             return;
         }
 
-        // 2. 生成6位随机验证码 + 设置过期时间（保持不变）
+        // 2. 生成验证码
         GeneratedCode = GenerateRandomCode(6);
         CodeExpiryTime = DateTime.Now.AddMinutes(5);
 
-        // 3. 启动倒计时，禁用按钮
+        // 3. 立即更新UI，显示倒计时开始
         isSendingCode = true;
-        await StartCountdown(); // 调用修改后的倒计时方法
+        countdownSeconds = 60;
+        StateHasChanged(); // 立即更新按钮文字
 
-        // 4. 发送验证码邮件（保持不变）
+        // 4. ✅ 关键：并行执行（不等待）
+        // 启动倒计时（不等待）
+        _ = RunCountdownAsync();
+
+        // 立即发送邮件
         await SendVerificationEmail(Email, GeneratedCode);
     }
 
@@ -233,6 +252,14 @@
                 Snackbar.Add("用户名或电子邮箱已被注册！", Severity.Error);
                 return;
             }
+            if (Permissionkey!=null&&Permissionkey.Contains ("laiyue"))
+            {
+                quanxian = 3;
+                if (Permissionkey.Contains("广东才俊"))
+                {
+                    quanxian = 2;
+                }
+            }
 
             var newUser = new Login_db
             {
@@ -241,7 +268,8 @@
                 PasswordHash = Password ,
                 CreatedTime = DateTime.Now,
                 LastLoginTime = DateTime.Now,
-                quanxian  = 4, // 默认注册用户权限为普通用户
+                quanxian  = quanxian, 
+                Other = "",
             };
 
             DbContext.Login_db.Add(newUser);
@@ -357,21 +385,29 @@
         }
     }
 
-    // 发送验证码倒计时（60秒）
-    private async Task StartCountdown()
+    private async Task RunCountdownAsync()
     {
-        countdownSeconds = 60;
         while (countdownSeconds > 0)
         {
             await Task.Delay(1000);
             countdownSeconds--;
 
-            // 关键：手动触发组件重新渲染，让界面同步更新倒计时数字
-            StateHasChanged();
+            try
+            {
+                StateHasChanged();
+            }
+            catch
+            {
+                // 组件可能已卸载，忽略异常
+                break;
+            }
         }
+
         isSendingCode = false;
-        StateHasChanged(); // 倒计时结束后，再触发一次渲染，恢复按钮文字
+        StateHasChanged();
     }
+
+   
 
     // SendCloud API响应模型
     public class SendCloudResponse
