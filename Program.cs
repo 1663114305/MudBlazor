@@ -41,6 +41,7 @@ builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 
 builder.Services.AddDbContext<DBContext>(options =>
                 options.UseSqlite("Data Source=MySqlite.db"));
+
 builder.Services.AddScoped<ProtectedSessionStorage>();
 // 注册用户状态服务（Scoped，每个会话独立）
 builder.Services.AddScoped<CustomUserState>();
@@ -61,6 +62,14 @@ using (var scope = app.Services.CreateScope())
         // 如果数据库已存在，此方法不做任何事情
         context.Database.EnsureCreated();
 
+        // 创建上传文件夹
+        var environment = services.GetRequiredService<IWebHostEnvironment>();
+        var uploadPath = Path.Combine(environment.WebRootPath, "uploads", "photos");
+        if (!Directory.Exists(uploadPath))
+        {
+            Directory.CreateDirectory(uploadPath);
+            Console.WriteLine($"上传文件夹已创建: {uploadPath}");
+        }
 
         var defaultUsers = new List<Login_db>
         {

@@ -1,0 +1,157 @@
+﻿@page "/Photograph"
+@using System.Text
+@using MudBlazor
+@using System.IO
+@using Microsoft.AspNetCore.Components.Forms
+@inject IWebHostEnvironment WebHostEnv
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@rendermode InteractiveServer
+
+<PageTitle>照片集</PageTitle>
+
+<MudFileUpload T="IBrowserFile"
+               FilesChanged="@FilesChanged"
+               OnFilesChanged="@OnFilesChanged"
+               Style="text-align: right; width: 100%;">
+    <ActivatorContent>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.CloudUpload">
+            上传图片
+        </MudButton>
+    </ActivatorContent>
+</MudFileUpload>
+
+<!-- 照片显示区域（原有代码完全不变） -->
+<div style="max-width: 1200px; margin: 0px auto 0; padding: 20px;">
+    <MudText Typo="Typo.h4" Class="mb-4" Color="Color.Primary">
+        <MudIcon Icon="@Icons.Material.Filled.PhotoLibrary" Class="mr-2" />
+        我的照片集
+    </MudText>
+
+    <MudGrid Spacing="3" Justify="Justify.Center">
+        @for (int i = 1; i <= 12; i++)
+        {
+            <MudItem xs="12" sm="6" md="4" lg="3">
+                <MudCard Class="h-100" Style="cursor: pointer;">
+                    <MudCardContent>
+                        <div style="height: 200px; background: linear-gradient(45deg, #f5f7fa 0%, #c3cfe2 100%);
+                                     display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                            <MudIcon Icon="@Icons.Material.Filled.Photo" Size="Size.Large" Color="Color.Primary" />
+                        </div>
+
+                        <div class="mt-3">
+                            <MudText Typo="Typo.body2" Class="mb-1">照片 @i</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                2024年1月@(i)日
+                            </MudText>
+                        </div>
+                    </MudCardContent>
+
+                    <MudCardActions>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Visibility">
+                            查看
+                        </MudButton>
+                        <div style="flex-grow: 1"></div>
+                        <MudIconButton Icon="@Icons.Material.Filled.MoreVert"
+                                       Color="Color.Default"
+                                       Size="Size.Small" />
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+</div>
+
+<style>
+    .h-100 {
+        height: 100%;
+    }
+
+    .mud-card:hover {
+        transform: translateY(-4px);
+        transition: transform 0.2s ease-in-out;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+    }
+
+    .rounded-pill {
+        border-radius: 50rem !important;
+    }
+</style> 
+
+@code {
+
+    // 临时存储选中的文件（用于OnFilesChanged中处理）
+    private IBrowserFile? _selectedFile;
+
+    /// <summary>
+    /// FilesChanged事件（MudFileUpload封装后的事件，参数为IBrowserFile）
+    /// </summary>
+    private void FilesChanged(IBrowserFile? file)
+    {
+        _selectedFile = file; // 缓存选中的文件，供OnFilesChanged使用
+    }
+
+    /// <summary>
+    /// OnFilesChanged事件（原生InputFile的事件，参数为InputFileChangeEventArgs）
+    /// </summary>
+    private async void OnFilesChanged(InputFileChangeEventArgs e)
+    {
+
+        try
+        {
+            // 优先使用FilesChanged缓存的文件，或从e中获取
+            var file = _selectedFile ?? (e.FileCount > 0 ? e.File : null);
+            if (file == null)
+            {
+                Snackbar.Add("未选择任何图片", Severity.Info);
+                return;
+            }
+
+            // 1. 校验文件格式（仅允许图片）
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+            if (!allowedTypes.Contains(file.ContentType))
+            {
+                Snackbar.Add($"不支持的格式：{file.ContentType}，仅允许jpg/png/gif/webp", Severity.Error);
+                return;
+            }
+
+            // 2. 构建保存目录（wwwroot/Photo）
+            var photoDir = Path.Combine(WebHostEnv.WebRootPath, "Photo");
+            if (!Directory.Exists(photoDir)) Directory.CreateDirectory(photoDir);
+
+            // 3. 生成唯一文件名
+            var safeFileName = Path.GetFileName(file.Name)
+                                   .Replace("\\", "")
+                                   .Replace("/", "")
+                                   .Replace(":", "")
+                                   .Replace("*", "")
+                                   .Replace("?", "")
+                                   .Replace("\"", "")
+                                   .Replace("<", "")
+                                   .Replace(">", "")
+                                   .Replace("|", "");
+            var uniqueFileName = $"{DateTime.Now:yyyyMMddHHmmssfff}_{safeFileName}";
+            var savePath = Path.Combine(photoDir, uniqueFileName);
+
+            // 4. 保存文件到目录
+            using (var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)) // 10MB限制
+            using (var fileStream = new FileStream(savePath, FileMode.Create))
+            {
+                await stream.CopyToAsync(fileStream);
+            }
+
+            Snackbar.Add($"照片「{file.Name}」上传成功！", Severity.Success);
+            Console.WriteLine($"图片已保存：{savePath}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"上传失败：{ex.Message}\n{ex.StackTrace}");
+            Snackbar.Add($"上传失败：{ex.Message}", Severity.Error);
+        }
+    }
+}
