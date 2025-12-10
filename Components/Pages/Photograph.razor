@@ -3,9 +3,13 @@
 @using MudBlazor
 @using System.IO
 @using Microsoft.AspNetCore.Components.Forms
+@using BlazorApp1.Components.Models
+@using Microsoft.EntityFrameworkCore
 @inject IWebHostEnvironment WebHostEnv
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject CustomUserState UserState
+@inject DBContext DbContext
 @rendermode InteractiveServer
 
 <PageTitle>照片集</PageTitle>
@@ -30,39 +34,100 @@
         我的照片集
     </MudText>
 
-    <MudGrid Spacing="3" Justify="Justify.Center">
-        @for (int i = 1; i <= 12; i++)
+    <MudGrid Spacing="3" Justify="Justify.FlexStart ">
+        @if (photos != null && photos.Any())
         {
-            <MudItem xs="12" sm="6" md="4" lg="3">
-                <MudCard Class="h-100" Style="cursor: pointer;">
-                    <MudCardContent>
-                        <div style="height: 200px; background: linear-gradient(45deg, #f5f7fa 0%, #c3cfe2 100%);
-                                     display: flex; align-items: center; justify-content: center; border-radius: 8px;">
-                            <MudIcon Icon="@Icons.Material.Filled.Photo" Size="Size.Large" Color="Color.Primary" />
-                        </div>
+            @foreach (var photo in photos)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Class="h-100" Style="cursor: pointer;">
+                        <MudCardContent>
+                            <div style="height: 200px; border-radius: 8px; overflow: hidden;">
+                                <img src="@photo.FilePath " style="width: 100%; height: 100%; object-fit: cover;" alt="图片丢失" />
+                            </div>
+                            <div class="mt-3">
+                                <MudText Typo="Typo.body2" Class="mb-1">照片描述：@photo.Description </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    上传时间： @photo.UploadTime.ToString("yyyy-MM-dd hh:mm:ss")
+                                </MudText>
+                            </div>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Visibility">
+                                查看
+                            </MudButton>
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Edit">
+                                修改
+                            </MudButton>
+                            <div style="flex-grow: 1"></div>
+                            <MudIconButton Icon="@Icons.Material.Filled.MoreVert"
+                                           Color="Color.Default"
+                                           Size="Size.Small" />
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        }
 
-                        <div class="mt-3">
-                            <MudText Typo="Typo.body2" Class="mb-1">照片 @i</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                2024年1月@(i)日
-                            </MudText>
-                        </div>
-                    </MudCardContent>
-
-                    <MudCardActions>
-                        <MudButton Variant="Variant.Text"
+        else
+        {
+            <!-- 无照片时：图片框上方显示上传按钮 + 单个提示图片框 -->
+            <div style="width: 100%; text-align: center; margin-bottom: 20px;">
+                <MudFileUpload T="IBrowserFile"
+                               FilesChanged="@FilesChanged"
+                               OnFilesChanged="@OnFilesChanged">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Filled"
                                    Color="Color.Primary"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Visibility">
-                            查看
+                                   StartIcon="@Icons.Material.Filled.CloudUpload">
+                            上传图片
                         </MudButton>
-                        <div style="flex-grow: 1"></div>
-                        <MudIconButton Icon="@Icons.Material.Filled.MoreVert"
-                                       Color="Color.Default"
-                                       Size="Size.Small" />
-                    </MudCardActions>
-                </MudCard>
-            </MudItem>
+                    </ActivatorContent>
+                </MudFileUpload>
+                <MudText Typo="Typo.body1" Class="mt-2" Color="Color.Secondary">
+                    请上传你的第一张照片
+                </MudText>
+            </div>
+
+            <!-- 仅新增这层div实现居中，其余不变 -->
+            <div style="display: flex; justify-content: center; width: 100%;">
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Class="h-100" Style="cursor: pointer;">
+                        <MudCardContent>
+                            <div style="height: 200px; background: linear-gradient(45deg, #f5f7fa 0%, #c3cfe2 100%);
+                                         display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Photo" Size="Size.Large" Color="Color.Primary" />
+                            </div>
+                            <div class="mt-3">
+                                <MudText Typo="Typo.body2" Class="mb-1">暂无照片</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    上传后将显示在这里
+                                </MudText>
+                            </div>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Visibility"
+                                       Disabled="true">
+                                查看
+                            </MudButton>
+                            <div style="flex-grow: 1"></div>
+                            <MudIconButton Icon="@Icons.Material.Filled.MoreVert"
+                                           Color="Color.Default"
+                                           Size="Size.Small"
+                                           Disabled="true" />
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            </div>
         }
     </MudGrid>
 </div>
@@ -81,12 +146,16 @@
     .rounded-pill {
         border-radius: 50rem !important;
     }
-</style> 
+</style>
 
 @code {
 
     // 临时存储选中的文件（用于OnFilesChanged中处理）
     private IBrowserFile? _selectedFile;
+    // 存储查询到的照片路径
+    private List<Photo>? photos;
+
+    private bool _hasRestoredUserState = false;
 
     /// <summary>
     /// FilesChanged事件（MudFileUpload封装后的事件，参数为IBrowserFile）
@@ -95,7 +164,11 @@
     {
         _selectedFile = file; // 缓存选中的文件，供OnFilesChanged使用
     }
-
+    // 组件初始化时加载照片
+    protected override async Task OnInitializedAsync()
+    {
+        photos = new List<Photo>();
+    }
     /// <summary>
     /// OnFilesChanged事件（原生InputFile的事件，参数为InputFileChangeEventArgs）
     /// </summary>
@@ -146,6 +219,28 @@
             }
 
             Snackbar.Add($"照片「{file.Name}」上传成功！", Severity.Success);
+            var photo = new Photo
+            {
+                // 从UserState获取用户名（你的自定义状态服务）
+                Username = UserState.CurrentUser?.Username ?? string.Empty,
+                // 生成的唯一文件名（存储到数据库的文件名）
+                FileName = uniqueFileName,
+                // 文件原始名称（用户上传的原文件名）
+                OriginalFileName = file.Name,
+                // 文件存储路径（相对路径/绝对路径，这里用相对路径更适配部署）
+                FilePath = $"/Photo/{uniqueFileName}", // 前端可直接通过/Photo/xxx访问
+                // 文件大小（字节）
+                FileSize = file.Size,
+                // 文件类型（MIME类型，如image/jpeg）
+                FileType = file.ContentType,
+                // 上传时间（默认是DateTime.Now，显式赋值更清晰）
+                UploadTime = DateTime.Now,
+                // 是否公开（使用默认值true，无需手动赋值，也可显式写）
+                IsPublic = false,
+            };
+            DbContext.Photos.Add(photo);
+            await DbContext.SaveChangesAsync();
+
             Console.WriteLine($"图片已保存：{savePath}");
         }
         catch (Exception ex)
@@ -154,4 +249,34 @@
             Snackbar.Add($"上传失败：{ex.Message}", Severity.Error);
         }
     }
+
+
+    private async Task<List<Photo>> Inquiry_photo()
+    {
+        if (UserState == null || UserState.CurrentUser == null || string.IsNullOrEmpty(UserState.CurrentUser.Username))
+        {
+            // 返回空列表，避免查询报错
+            return new List<Photo>();
+        }
+        List<Photo> photoPaths = await DbContext.Photos
+            .Where(u => u.Username == UserState.CurrentUser.Username)
+            .ToListAsync();
+        return photoPaths;
+    }
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_hasRestoredUserState)
+        {
+            await UserState.RestoreUserState();
+            _hasRestoredUserState = true;
+            photos = await Inquiry_photo();
+            StateHasChanged();
+        }
+    }
+
+
+
+
 }
