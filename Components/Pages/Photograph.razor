@@ -55,7 +55,7 @@
                                 </div>
                             </MudCardContent>
                             <MudCardActions>
-                                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility">查看</MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick="() => OpenPhotoPreview(temophoto)">查看</MudButton>
                                 <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Edit">修改</MudButton>
                             <MudSwitch @bind-Value="temophoto.IsPublic"
                                        Size="Size.Small"
@@ -257,6 +257,20 @@
 
   
 
-
+    // 打开照片预览弹窗
+    private async Task OpenPhotoPreview(Photo photo)
+    {
+        // 配置弹窗参数（宽度、位置等）
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium, // 弹窗最大宽度
+            FullWidth = true,
+            CloseOnEscapeKey = true // 按ESC关闭
+        };
+        // 传递要预览的照片对象给弹窗组件
+        var parameters = new DialogParameters { { nameof(PhotoPreviewDialog.Photo), photo } };
+        // 打开弹窗
+        await DialogService.ShowAsync<PhotoPreviewDialog>("照片预览", parameters, options);
+    }
 
 }

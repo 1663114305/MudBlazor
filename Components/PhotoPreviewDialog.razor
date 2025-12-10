@@ -1,0 +1,26 @@
+﻿@using BlazorApp1.Components.Models
+@inject IDialogService DialogService
+<MudDialog>
+    <DialogContent>
+        <img src="@Photo.FilePath"
+             style="width: 100%; max-width: 600; max-height: 480px; object-fit: contain;"
+             alt="照片预览" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CloseDialog">关闭</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } 
+    // 接收父页面传递的照片对象
+    [Parameter]
+    public Photo Photo { get; set; } = new Photo(); // 初始化避免空引用
+
+    // 关闭弹窗方法
+    private void CloseDialog()
+    {
+        MudDialog.Close(DialogResult.Ok(true)); // 用MudDialog关闭弹窗
+    }
+}
